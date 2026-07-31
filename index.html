@@ -372,12 +372,12 @@
           </div>
         </div>
         <div class="row"><label>Speed</label><input type="range" id="animSpeed" min="0.25" max="3" step="0.05" value="1"><span class="val" id="animSpeedv">1.0</span></div>
-        <div class="row" style="margin-top:2px"><label>Live morph</label>
-          <button class="btn ghost" id="autoMorph" style="flex:1">🫧 Auto-morph: off</button>
+        <div class="row" style="margin-top:2px"><label>Cycle</label>
+          <button class="btn ghost" id="animCycle" style="flex:1">🔄 Cycle animations: off</button>
         </div>
-        <div class="row"><label>Amount</label><input type="range" id="morphAmt" min="0.2" max="1.5" step="0.05" value="0.7"><span class="val" id="morphAmtv">0.7</span></div>
+        <div class="row"><label>Secs each</label><input type="range" id="cycleSecs" min="2" max="12" step="0.5" value="5"><span class="val" id="cycleSecsv">5</span></div>
         <button class="btn ghost" id="expWebm" style="width:100%;margin-top:4px">⬇ Export WEBM video</button>
-        <div class="foothint" style="text-align:left">Boil/Liquid/Morph/Goo/Ripple = the mark flows like liquid (self-animating SVG). Auto-morph = the sigil's shape keeps evolving on its own.</div>
+        <div class="foothint" style="text-align:left">Tap motions to <b>combine</b> them (they stack — e.g. Boil + Shimmer + Spin). <b>Cycle</b> = auto-rotate through the selected motions one at a time (or all of them if none are selected).</div>
       </div>
     </div>
 
@@ -444,7 +444,7 @@ const state = {
   twoTone:false, twoToneColor:"#000000", twoToneInset:12,
   pattern:"none", patColor:"#000000", patScale:20,
   grain:0, warp:0, glitch:0,
-  animType:"none", animSpeed:1, autoMorph:false, morphAmt:0.7,
+  animType:"none", animSet:[], animSpeed:1, animCycle:false, cycleSecs:5,
   offX:0, offY:0, markScale:1, rotate:0,
   locks:{finish:false,colors:false,layout:false,fx:false},
   palette:["#ff2fa0","#7CFC00","#0b0b12"], bgPatOpacity:0.5,
@@ -1151,60 +1151,64 @@ function buildSVG(forExport,animT,opts){
   let content=`${glowLayer}${behind}${sticker}${layers}${inner}${pattern}`;
   if(state.warp>0)   content=`<g filter="url(#warpF)">${content}</g>`;
   if(state.glitch>0) content=`<g filter="url(#glitchF)">${content}</g>`;
-  // ---- motion ----
+  // ---- motion (multi-select COMBINE + optional CYCLE) ----
   let animStyle="", extraDefs="";
-  const A=opts.tile?"none":state.animType, cx=W/2, cy=H/2, aSp=state.animSpeed||1;
-  // liquid/organic motion: an animated displacement (or gooey) filter over the whole mark.
-  // Works as SMIL for live preview AND for the exported standalone SVG (self-animating),
-  // and as a baked static filter per frame for raster/WEBM export.
+  const cx=W/2, cy=H/2, aSp=state.animSpeed||1;
   const LIQ={boil:  {ty:"turbulence",  bf:0.030, bf2:0.060, sc:14, oct:2, dur:2.4},
              liquid:{ty:"fractalNoise",bf:0.010, bf2:0.017, sc:24, oct:2, dur:5.0},
              morph: {ty:"fractalNoise",bf:0.005, bf2:0.010, sc:48, oct:2, dur:8.0},
              ripple:{ty:"fractalNoise",bf:0.012, bf2:0.012, sc:34, oct:2, dur:3.0, pulse:1}};
-  if(A&&A!=="none"){
+  // active motions: cycle (one at a time) for live preview, else the combined set
+  let acts=[];
+  if(!opts.tile){
+    if(state.animCycle && CYCLE_CUR && animT==null){ acts=[CYCLE_CUR]; }
+    else { acts = (state.animSet&&state.animSet.length) ? state.animSet.slice()
+                : (state.animType&&state.animType!=="none" ? [state.animType] : []); }
+  }
+  acts.forEach((A,i)=>{
+    if(!A||A==="none"||(!LIQ[A]&&A!=="goo"&&A!=="shimmer"&&A!=="spin"&&A!=="pulse"&&A!=="flicker")) return;
+    const uid="m"+i, reg='x="-35%" y="-35%" width="170%" height="170%"';
     if(LIQ[A]){
-      const P=LIQ[A], dur=(P.dur/aSp).toFixed(2), reg='x="-35%" y="-35%" width="170%" height="170%"';
+      const P=LIQ[A], dur=(P.dur/aSp).toFixed(2);
       if(animT==null){
-        const bfA = P.bf===P.bf2 ? "" :
-          `<animate attributeName="baseFrequency" values="${P.bf};${P.bf2};${P.bf}" dur="${dur}s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.5;1" keySplines="0.45 0 0.55 1;0.45 0 0.55 1"/>`;
+        const bfA = P.bf===P.bf2 ? "" : `<animate attributeName="baseFrequency" values="${P.bf};${P.bf2};${P.bf}" dur="${dur}s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.5;1" keySplines="0.45 0 0.55 1;0.45 0 0.55 1"/>`;
         const scVals = P.pulse ? `1;${P.sc};1` : `${(P.sc*0.6).toFixed(0)};${(P.sc*1.3).toFixed(0)};${(P.sc*0.6).toFixed(0)}`;
         const scSpl  = P.pulse ? "0.2 0 0.3 1;0.7 0 0.8 1" : "0.45 0 0.55 1;0.45 0 0.55 1";
-        extraDefs=`<filter id="csfLiq" ${reg}><feTurbulence type="${P.ty}" baseFrequency="${P.bf}" numOctaves="${P.oct}" seed="7" result="n">${bfA}</feTurbulence><feDisplacementMap in="SourceGraphic" in2="n" scale="${P.sc}" xChannelSelector="R" yChannelSelector="G"><animate attributeName="scale" values="${scVals}" dur="${dur}s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.5;1" keySplines="${scSpl}"/></feDisplacementMap></filter>`;
-        content=`<g filter="url(#csfLiq)">${content}</g>`;
+        extraDefs+=`<filter id="csfLiq_${uid}" ${reg}><feTurbulence type="${P.ty}" baseFrequency="${P.bf}" numOctaves="${P.oct}" seed="7" result="n">${bfA}</feTurbulence><feDisplacementMap in="SourceGraphic" in2="n" scale="${P.sc}" xChannelSelector="R" yChannelSelector="G"><animate attributeName="scale" values="${scVals}" dur="${dur}s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.5;1" keySplines="${scSpl}"/></feDisplacementMap></filter>`;
       } else {
         const ph=animT*2*Math.PI, u=0.5-0.5*Math.cos(ph);
         const bf=(P.bf+(P.bf2-P.bf)*u).toFixed(4);
         const sc=P.pulse ? (1+(P.sc-1)*Math.abs(Math.sin(ph))).toFixed(1) : (P.sc*(0.6+0.7*u)).toFixed(1);
         const seed=7+(P.ty==="turbulence"?Math.floor(animT*6):0);
-        extraDefs=`<filter id="csfLiq" ${reg}><feTurbulence type="${P.ty}" baseFrequency="${bf}" numOctaves="${P.oct}" seed="${seed}" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="${sc}" xChannelSelector="R" yChannelSelector="G"/></filter>`;
-        content=`<g filter="url(#csfLiq)">${content}</g>`;
+        extraDefs+=`<filter id="csfLiq_${uid}" ${reg}><feTurbulence type="${P.ty}" baseFrequency="${bf}" numOctaves="${P.oct}" seed="${seed}" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="${sc}" xChannelSelector="R" yChannelSelector="G"/></filter>`;
       }
+      content=`<g filter="url(#csfLiq_${uid})">${content}</g>`;
     } else if(A==="goo"){
       const dur=(3.2/aSp).toFixed(2), goomat="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -10";
       if(animT==null){
-        extraDefs=`<filter id="csfGoo" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceGraphic" stdDeviation="7" result="gb"><animate attributeName="stdDeviation" values="4;12;4" dur="${dur}s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.5;1" keySplines="0.4 0 0.6 1;0.4 0 0.6 1"/></feGaussianBlur><feColorMatrix in="gb" type="matrix" values="${goomat}" result="goo"/><feComposite in="SourceGraphic" in2="goo" operator="atop"/></filter>`;
+        extraDefs+=`<filter id="csfGoo_${uid}" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceGraphic" stdDeviation="7" result="gb"><animate attributeName="stdDeviation" values="4;12;4" dur="${dur}s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.5;1" keySplines="0.4 0 0.6 1;0.4 0 0.6 1"/></feGaussianBlur><feColorMatrix in="gb" type="matrix" values="${goomat}" result="goo"/><feComposite in="SourceGraphic" in2="goo" operator="atop"/></filter>`;
       } else {
         const sd=(4+8*(0.5-0.5*Math.cos(animT*2*Math.PI))).toFixed(2);
-        extraDefs=`<filter id="csfGoo" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceGraphic" stdDeviation="${sd}" result="gb"/><feColorMatrix in="gb" type="matrix" values="${goomat}" result="goo"/><feComposite in="SourceGraphic" in2="goo" operator="atop"/></filter>`;
+        extraDefs+=`<filter id="csfGoo_${uid}" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceGraphic" stdDeviation="${sd}" result="gb"/><feColorMatrix in="gb" type="matrix" values="${goomat}" result="goo"/><feComposite in="SourceGraphic" in2="goo" operator="atop"/></filter>`;
       }
-      content=`<g filter="url(#csfGoo)">${content}</g>`;
-    } else if(animT==null){ // transform/color motion: CSS keyframes (self-animating file)
+      content=`<g filter="url(#csfGoo_${uid})">${content}</g>`;
+    } else if(animT==null){
       const dur=(4/aSp).toFixed(2);
-      const kf={shimmer:"@keyframes csfA{to{filter:hue-rotate(360deg)}}",
-                spin:"@keyframes csfA{to{transform:rotate(360deg)}}",
-                pulse:"@keyframes csfA{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}",
-                flicker:"@keyframes csfA{0%,100%{opacity:1}42%{opacity:.5}48%{opacity:.95}54%{opacity:.45}62%{opacity:1}}"}[A];
+      const kf={shimmer:`@keyframes csfA_${uid}{to{filter:hue-rotate(360deg)}}`,
+                spin:`@keyframes csfA_${uid}{to{transform:rotate(360deg)}}`,
+                pulse:`@keyframes csfA_${uid}{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}`,
+                flicker:`@keyframes csfA_${uid}{0%,100%{opacity:1}42%{opacity:.5}48%{opacity:.95}54%{opacity:.45}62%{opacity:1}}`}[A];
       const tim=A==="flicker"?`${dur}s steps(1,end)`:A==="spin"?`${dur}s linear`:`${dur}s ease-in-out`;
-      animStyle=`<style>${kf} #csfAnim{transform-box:fill-box;transform-origin:50% 50%;animation:csfA ${tim} infinite}</style>`;
-      content=`<g id="csfAnim">${content}</g>`;
-    } else { // baked frame for raster/webm export
+      animStyle+=`<style>${kf} #csf_${uid}{transform-box:fill-box;transform-origin:50% 50%;animation:csfA_${uid} ${tim} infinite}</style>`;
+      content=`<g id="csf_${uid}">${content}</g>`;
+    } else {
       const t=animT;
-      if(A==="shimmer"){ extraDefs=`<filter id="csfHue"><feColorMatrix type="hueRotate" values="${(t*360).toFixed(0)}"/></filter>`; content=`<g filter="url(#csfHue)">${content}</g>`; }
+      if(A==="shimmer"){ extraDefs+=`<filter id="csfHue_${uid}"><feColorMatrix type="hueRotate" values="${(t*360).toFixed(0)}"/></filter>`; content=`<g filter="url(#csfHue_${uid})">${content}</g>`; }
       else if(A==="spin"){ content=`<g transform="rotate(${(t*360).toFixed(1)} ${cx} ${cy})">${content}</g>`; }
       else if(A==="pulse"){ const s=(1+0.05*Math.sin(t*2*Math.PI)).toFixed(4); content=`<g transform="translate(${cx},${cy}) scale(${s}) translate(${-cx},${-cy})">${content}</g>`; }
       else if(A==="flicker"){ const o=[1,1,.5,.95,.45,1,1,.6][Math.floor(t*8)%8]; content=`<g opacity="${o}">${content}</g>`; }
     }
-  }
+  });
   // ---- mark transform (position / scale / rotate), independent of canvas ----
   if(state.offX||state.offY||state.markScale!==1||state.rotate){
     const dx=(state.offX/100*W).toFixed(1), dy=(state.offY/100*H).toFixed(1), s=state.markScale, r=state.rotate;
@@ -1339,6 +1343,13 @@ function renderPresets(){
 function segSet(id,val){document.querySelectorAll('#'+id+' button').forEach(b=>b.classList.toggle('on',b.dataset.v===String(val)));}
 function setRange(id){const el=document.getElementById(id);if(!el)return;el.value=state[id];const o=document.getElementById(id+'v');if(o)o.textContent=el.value;}
 function setColor(id){const el=document.getElementById(id);if(el&&/^#([0-9a-f]{6})$/i.test(state[id]))el.value=state[id];}
+function syncAnimChips(){
+  const set=Array.isArray(state.animSet)?state.animSet:[];
+  document.querySelectorAll('#animChips button').forEach(b=>{
+    const v=b.dataset.v;
+    b.classList.toggle('on', v==="none" ? set.length===0 : set.includes(v));
+  });
+}
 function syncAllUI(){
   syncSliders();
   segSet('modeSeg',state.mode);
@@ -1368,8 +1379,9 @@ function syncAllUI(){
   const tw=document.getElementById('twoToneToggle'); tw.classList.toggle('on',state.twoTone); tw.textContent=state.twoTone?'On':'Off';
   document.querySelectorAll('#patternChips button').forEach(b=>b.classList.toggle('on',b.dataset.v===state.pattern));
   document.getElementById('patRow').style.display=state.pattern==='none'?'none':'flex';
-  ['grain','warp','glitch','animSpeed','morphAmt'].forEach(setRange);
-  document.querySelectorAll('#animChips button').forEach(b=>b.classList.toggle('on',b.dataset.v===state.animType));
+  ['grain','warp','glitch','animSpeed','cycleSecs'].forEach(setRange);
+  syncAnimChips();
+  const cyb=document.getElementById('animCycle'); if(cyb){ cyb.classList.toggle('on',!!state.animCycle); cyb.textContent="🔄 Cycle animations: "+(state.animCycle?"on":"off"); }
   const fsel=document.getElementById('fontSel'); if(fsel) fsel.value=state.textFont;
   const ti=document.getElementById('textInput'); if(ti) ti.value=state.text||'';
   const si=document.getElementById('subInput'); if(si) si.value=state.sub||'';
@@ -1380,9 +1392,10 @@ function syncAllUI(){
 function applyPreset(p){
   if(p.patch.styles) state.styles={flame:false,band:false,knot:false,...p.patch.styles};
   // reset effect fields the preset doesn't set, so each preset is a clean, predictable look
-  const eff={grain:0,warp:0,glitch:0,animType:"none"};
+  const eff={grain:0,warp:0,glitch:0,animType:"none",animCycle:false};
   Object.keys(eff).forEach(k=>{ if(!(k in p.patch)) state[k]=eff[k]; });
   Object.keys(p.patch).forEach(k=>{ if(k!=="styles") state[k]=p.patch[k]; });
+  state.animSet=(state.animType&&state.animType!=="none")?[state.animType]:[];  // sync multi-select from preset
   syncAllUI(); render(); refreshStrip();
 }
 /* ---- save / restore looks ---- */
@@ -1396,7 +1409,7 @@ function renderPins(){
   const cur=looksState(true); row.innerHTML='';
   PINS.forEach(pin=>{
     Object.assign(state,pin);
-    const t=document.createElement('div'); t.className='vt'; t.innerHTML=buildSVG(false);
+    const t=document.createElement('div'); t.className='vt'; t.innerHTML=buildSVG(false,null,{tile:true});
     t.title='click to restore'; t.onclick=()=>{ Object.assign(state,pin); syncAllUI(); render(); refreshStrip(); };
     row.appendChild(t);
   });
@@ -1463,6 +1476,7 @@ function applyVariant(v){ VAR_KEYS.forEach(k=>state[k]=v[k]); syncSliders(); ren
 function randomizeAll(){ applyVariant(makeVariant()); shuffleStrip(); }
 
 let VARIANTS=[];
+let CYCLE_CUR=null;   // motion currently shown while Cycle mode is on
 /* fill the strip with 6 fresh candidates (current finish/layout kept) */
 function shuffleStrip(){ VARIANTS=Array.from({length:6},makeVariant); renderVariants(); }
 function renderVariants(){
@@ -1514,7 +1528,7 @@ async function rasterFrame(t,W,H,scale){
   return bmp;
 }
 async function exportWEBM(btn){
-  if(state.animType==="none"){ alert("Pick an Animation type first (Animation section)."); return; }
+  if(!(state.animSet&&state.animSet.length)&&(!state.animType||state.animType==="none")){ alert("Pick at least one Motion first (Animation section). The video bakes the combined motions; Cycle mode isn't recorded."); return; }
   const label=btn?btn.textContent:""; if(btn){btn.textContent="Rendering…";btn.disabled=true;}
   try{
     const H=1000,W=Math.round(1000*state.ratio), fps=24, N=48;
@@ -1640,33 +1654,38 @@ function init(){
   slider("stickerW","stickerW"); slider("echoOffset","echoOffset"); slider("patScale","patScale");
   slider("grain","grain",v=>v.toFixed(2).replace(/^0/,'')); slider("warp","warp"); slider("glitch","glitch");
   slider("animSpeed","animSpeed",v=>v.toFixed(2).replace(/0$/,''));
+  // Motion chips = MULTI-SELECT (combine). "None" clears the set.
   document.getElementById("animChips").querySelectorAll("button").forEach(b=>b.onclick=()=>{
-    document.getElementById("animChips").querySelectorAll("button").forEach(x=>x.classList.remove("on"));
-    b.classList.add("on"); state.animType=b.dataset.v; render(); refreshStrip();
+    const v=b.dataset.v;
+    if(!Array.isArray(state.animSet)) state.animSet=[];
+    if(v==="none"){ state.animSet=[]; }
+    else { const i=state.animSet.indexOf(v); if(i>=0) state.animSet.splice(i,1); else state.animSet.push(v); }
+    state.animType=state.animSet[0]||"none";        // keep single field synced for presets/export
+    syncAnimChips();
+    if(state.animCycle) restartCycle();
+    render(); refreshStrip();
   });
-  // ---- Auto-morph: the sigil's FORM keeps evolving on its own (live) ----
-  let _morphRAF=null, _morphLast=0;
-  function morphTick(now){
-    if(!state.autoMorph){ _morphRAF=null; return; }
-    _morphRAF=requestAnimationFrame(morphTick);
-    if(now-_morphLast < 60) return;                 // throttle ~16fps
-    _morphLast=now;
-    const t=now/1000, k=state.morphAmt, cl=(v,a,b)=>v<a?a:v>b?b:v;
-    state.spikiness=+cl(0.60+0.30*k*Math.sin(t*0.70)      ,0,1  ).toFixed(3);
-    state.curl     =Math.round(cl(18 +48*k*Math.sin(t*0.37+1.3),-90,90));
-    state.hook     =Math.round(cl(120+90*k*Math.sin(t*0.23+2.1),0,320));
-    state.holes    =+cl(0.45+0.32*k*Math.sin(t*0.53+3.4)  ,0,1  ).toFixed(3);
-    render();
+  // ---- Cycle: auto-rotate through the selected motions (or all of them), one at a time ----
+  const MOTION_ALL=["boil","liquid","morph","goo","ripple","shimmer","pulse","spin","flicker"];
+  let _cycleT=0;
+  function cycleList(){ return (state.animSet&&state.animSet.length)?state.animSet:MOTION_ALL; }
+  function cycleTick(){
+    if(!state.animCycle){ CYCLE_CUR=null; return; }   // stopped externally (e.g. preset applied)
+    const list=cycleList(); if(!list.length){ CYCLE_CUR=null; render(); return; }
+    const idx=(list.indexOf(CYCLE_CUR)+1)%list.length;   // advance (from -1 → 0 on first run)
+    CYCLE_CUR=list[idx]; render();
+    _cycleT=setTimeout(cycleTick, Math.max(1,(state.cycleSecs||5))*1000);
   }
-  function setAutoMorph(on){
-    state.autoMorph=on;
-    const b=document.getElementById("autoMorph");
-    b.classList.toggle("on",on); b.textContent="🫧 Auto-morph: "+(on?"on":"off");
-    if(on){ if(!_morphRAF) _morphRAF=requestAnimationFrame(morphTick); }
-    else { if(_morphRAF){cancelAnimationFrame(_morphRAF);_morphRAF=null;} syncAllUI(); }
+  function restartCycle(){ clearTimeout(_cycleT); CYCLE_CUR=null; cycleTick(); }
+  function setCycle(on){
+    state.animCycle=on;
+    const b=document.getElementById("animCycle");
+    b.classList.toggle("on",on); b.textContent="🔄 Cycle animations: "+(on?"on":"off");
+    clearTimeout(_cycleT); CYCLE_CUR=null;
+    if(on) cycleTick(); else render();
   }
-  document.getElementById("autoMorph").onclick=()=>setAutoMorph(!state.autoMorph);
-  slider("morphAmt","morphAmt",v=>v.toFixed(2).replace(/0$/,''));
+  document.getElementById("animCycle").onclick=()=>setCycle(!state.animCycle);
+  slider("cycleSecs","cycleSecs",v=>(+v).toFixed(1).replace(/\.0$/,''));
   document.getElementById("expWebm").onclick=function(){exportWEBM(this);};
   ["stickerColor","echoColor","twoToneColor","patColor"].forEach(id=>{
     const el=document.getElementById(id); el.oninput=()=>{state[id]=el.value;render();refreshStrip();};
