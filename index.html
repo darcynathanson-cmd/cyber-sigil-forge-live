@@ -32,7 +32,7 @@
   #brand h1{margin:0;font-size:15px;letter-spacing:.02em;display:flex;align-items:center;gap:8px}
   #brand h1 b{color:var(--acc)}
   #brand p{margin:4px 0 0;color:var(--dim);font-size:11.5px}
-  #controls{overflow-y:auto;padding:6px 0 230px;flex:1}
+  #controls{overflow-y:auto;padding:6px 0 14px;flex:1 1 auto;min-height:0}
   #controls::-webkit-scrollbar{width:9px}#controls::-webkit-scrollbar-thumb{background:#2c2c36;border-radius:6px}
   .sec{padding:12px 18px;border-bottom:1px solid var(--line)}
   .sec h2{margin:0 0 10px;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);font-weight:600;cursor:pointer;position:relative;user-select:none}
@@ -65,7 +65,7 @@
   #presetRow .dot{width:11px;height:11px;border-radius:3px;display:inline-block}
   .presetrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
   .pchip{width:30px;height:20px;border-radius:5px;border:1px solid #0006;cursor:pointer;position:relative}
-  #foot{position:absolute;bottom:0;left:0;right:0;width:326px;margin-left:auto;background:linear-gradient(0deg,var(--panel) 70%,transparent);
+  #foot{flex:0 0 auto;background:var(--panel);box-shadow:0 -10px 18px -6px var(--panel);
         padding:12px 18px 14px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
   .btnrow{display:flex;gap:8px}
   .btn{flex:1;border:0;border-radius:9px;padding:11px 8px;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:600}
@@ -360,6 +360,11 @@
         <div class="row" style="align-items:flex-start;margin-top:0"><label style="margin-top:5px">Motion</label>
           <div class="chips" id="animChips" style="flex:1">
             <button data-v="none" class="on">None</button>
+            <button data-v="boil">Boil</button>
+            <button data-v="liquid">Liquid</button>
+            <button data-v="morph">Morph</button>
+            <button data-v="goo">Goo</button>
+            <button data-v="ripple">Ripple</button>
             <button data-v="shimmer">Shimmer</button>
             <button data-v="pulse">Pulse</button>
             <button data-v="spin">Spin</button>
@@ -367,8 +372,12 @@
           </div>
         </div>
         <div class="row"><label>Speed</label><input type="range" id="animSpeed" min="0.25" max="3" step="0.05" value="1"><span class="val" id="animSpeedv">1.0</span></div>
+        <div class="row" style="margin-top:2px"><label>Live morph</label>
+          <button class="btn ghost" id="autoMorph" style="flex:1">🫧 Auto-morph: off</button>
+        </div>
+        <div class="row"><label>Amount</label><input type="range" id="morphAmt" min="0.2" max="1.5" step="0.05" value="0.7"><span class="val" id="morphAmtv">0.7</span></div>
         <button class="btn ghost" id="expWebm" style="width:100%;margin-top:4px">⬇ Export WEBM video</button>
-        <div class="foothint" style="text-align:left">Preview animates live. Exported SVG animates too; WEBM is a video for socials.</div>
+        <div class="foothint" style="text-align:left">Boil/Liquid/Morph/Goo/Ripple = the mark flows like liquid (self-animating SVG). Auto-morph = the sigil's shape keeps evolving on its own.</div>
       </div>
     </div>
 
@@ -435,7 +444,7 @@ const state = {
   twoTone:false, twoToneColor:"#000000", twoToneInset:12,
   pattern:"none", patColor:"#000000", patScale:20,
   grain:0, warp:0, glitch:0,
-  animType:"none", animSpeed:1,
+  animType:"none", animSpeed:1, autoMorph:false, morphAmt:0.7,
   offX:0, offY:0, markScale:1, rotate:0,
   locks:{finish:false,colors:false,layout:false,fx:false},
   palette:["#ff2fa0","#7CFC00","#0b0b12"], bgPatOpacity:0.5,
@@ -1143,10 +1152,43 @@ function buildSVG(forExport,animT){
   if(state.glitch>0) content=`<g filter="url(#glitchF)">${content}</g>`;
   // ---- motion ----
   let animStyle="", extraDefs="";
-  const A=state.animType, cx=W/2, cy=H/2;
+  const A=state.animType, cx=W/2, cy=H/2, aSp=state.animSpeed||1;
+  // liquid/organic motion: an animated displacement (or gooey) filter over the whole mark.
+  // Works as SMIL for live preview AND for the exported standalone SVG (self-animating),
+  // and as a baked static filter per frame for raster/WEBM export.
+  const LIQ={boil:  {ty:"turbulence",  bf:0.030, bf2:0.060, sc:14, oct:2, dur:2.4},
+             liquid:{ty:"fractalNoise",bf:0.010, bf2:0.017, sc:24, oct:2, dur:5.0},
+             morph: {ty:"fractalNoise",bf:0.005, bf2:0.010, sc:48, oct:3, dur:8.0},
+             ripple:{ty:"fractalNoise",bf:0.012, bf2:0.012, sc:34, oct:2, dur:3.0, pulse:1}};
   if(A&&A!=="none"){
-    if(animT==null){ // live preview + exported SVG: CSS keyframes (self-animating file)
-      const dur=(4/(state.animSpeed||1)).toFixed(2);
+    if(LIQ[A]){
+      const P=LIQ[A], dur=(P.dur/aSp).toFixed(2), reg='x="-35%" y="-35%" width="170%" height="170%"';
+      if(animT==null){
+        const bfA = P.bf===P.bf2 ? "" :
+          `<animate attributeName="baseFrequency" values="${P.bf};${P.bf2};${P.bf}" dur="${dur}s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.5;1" keySplines="0.45 0 0.55 1;0.45 0 0.55 1"/>`;
+        const scVals = P.pulse ? `1;${P.sc};1` : `${(P.sc*0.6).toFixed(0)};${(P.sc*1.3).toFixed(0)};${(P.sc*0.6).toFixed(0)}`;
+        const scSpl  = P.pulse ? "0.2 0 0.3 1;0.7 0 0.8 1" : "0.45 0 0.55 1;0.45 0 0.55 1";
+        extraDefs=`<filter id="csfLiq" ${reg}><feTurbulence type="${P.ty}" baseFrequency="${P.bf}" numOctaves="${P.oct}" seed="7" result="n">${bfA}</feTurbulence><feDisplacementMap in="SourceGraphic" in2="n" scale="${P.sc}" xChannelSelector="R" yChannelSelector="G"><animate attributeName="scale" values="${scVals}" dur="${dur}s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.5;1" keySplines="${scSpl}"/></feDisplacementMap></filter>`;
+        content=`<g filter="url(#csfLiq)">${content}</g>`;
+      } else {
+        const ph=animT*2*Math.PI, u=0.5-0.5*Math.cos(ph);
+        const bf=(P.bf+(P.bf2-P.bf)*u).toFixed(4);
+        const sc=P.pulse ? (1+(P.sc-1)*Math.abs(Math.sin(ph))).toFixed(1) : (P.sc*(0.6+0.7*u)).toFixed(1);
+        const seed=7+(P.ty==="turbulence"?Math.floor(animT*6):0);
+        extraDefs=`<filter id="csfLiq" ${reg}><feTurbulence type="${P.ty}" baseFrequency="${bf}" numOctaves="${P.oct}" seed="${seed}" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="${sc}" xChannelSelector="R" yChannelSelector="G"/></filter>`;
+        content=`<g filter="url(#csfLiq)">${content}</g>`;
+      }
+    } else if(A==="goo"){
+      const dur=(3.2/aSp).toFixed(2), goomat="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -10";
+      if(animT==null){
+        extraDefs=`<filter id="csfGoo" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceGraphic" stdDeviation="7" result="gb"><animate attributeName="stdDeviation" values="4;12;4" dur="${dur}s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.5;1" keySplines="0.4 0 0.6 1;0.4 0 0.6 1"/></feGaussianBlur><feColorMatrix in="gb" type="matrix" values="${goomat}" result="goo"/><feComposite in="SourceGraphic" in2="goo" operator="atop"/></filter>`;
+      } else {
+        const sd=(4+8*(0.5-0.5*Math.cos(animT*2*Math.PI))).toFixed(2);
+        extraDefs=`<filter id="csfGoo" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceGraphic" stdDeviation="${sd}" result="gb"/><feColorMatrix in="gb" type="matrix" values="${goomat}" result="goo"/><feComposite in="SourceGraphic" in2="goo" operator="atop"/></filter>`;
+      }
+      content=`<g filter="url(#csfGoo)">${content}</g>`;
+    } else if(animT==null){ // transform/color motion: CSS keyframes (self-animating file)
+      const dur=(4/aSp).toFixed(2);
       const kf={shimmer:"@keyframes csfA{to{filter:hue-rotate(360deg)}}",
                 spin:"@keyframes csfA{to{transform:rotate(360deg)}}",
                 pulse:"@keyframes csfA{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}",
@@ -1254,6 +1296,12 @@ const PRESETS=[
  {name:"▶ Neon flicker", dot:"#ff2fa0", patch:{styles:{flame:true},finish:"neon",neonColor:"#ff2fa0",bg:"#08080c",glow:true,glowColor:"#ff2fa0",animType:"flicker"}},
  {name:"▶ Chrome spin", dot:"#cdd6e2", patch:{styles:{flame:true},arch:"medallion",finish:"chrome",bg:"#0a0a12",animType:"spin",animSpeed:0.6}},
  {name:"▶ Glitch pulse", dot:"#22e0ff", patch:{styles:{flame:true,knot:true},finish:"holo",bg:"#08080c",glitch:8,grain:0.3,animType:"pulse"}},
+ {name:"▶ Lava boil", dot:"#ff7a1a", patch:{styles:{flame:true},finish:"gel",gelHue:"#ff5a1a",bg:"#0c0503",animType:"boil",animSpeed:1}},
+ {name:"▶ Liquid chrome", dot:"#dfe7f0", patch:{styles:{flame:true,knot:true},finish:"chrome",chromeTint:"#c9a24a",bg:"#0a0a10",animType:"liquid",animSpeed:1}},
+ {name:"▶ Morphing holo", dot:"#8affd0", patch:{styles:{flame:true},finish:"holo",bg:"#08080c",animType:"morph",animSpeed:1}},
+ {name:"▶ Mercury goo", dot:"#c7d2df", patch:{styles:{flame:true},finish:"chrome",chromeTint:"#aeb6c2",bg:"#070709",animType:"goo",animSpeed:1}},
+ {name:"▶ Ectoplasm", dot:"#7CFC00", patch:{styles:{flame:true},finish:"neon",neonColor:"#7CFC00",bg:"#05080a",glow:true,glowColor:"#7CFC00",animType:"liquid",animSpeed:1.2}},
+ {name:"▶ Acid ripple", dot:"#ff2fa0", patch:{styles:{flame:true,knot:true},finish:"gel",gelHue:"#ff2fa0",bg:"#0b0b12",animType:"ripple",animSpeed:1}},
 ];
 const PAL_PRESETS=[
   ["#ff2fa0","#7CFC00","#0b0b12"], // toxic
@@ -1314,7 +1362,7 @@ function syncAllUI(){
   const tw=document.getElementById('twoToneToggle'); tw.classList.toggle('on',state.twoTone); tw.textContent=state.twoTone?'On':'Off';
   document.querySelectorAll('#patternChips button').forEach(b=>b.classList.toggle('on',b.dataset.v===state.pattern));
   document.getElementById('patRow').style.display=state.pattern==='none'?'none':'flex';
-  ['grain','warp','glitch','animSpeed'].forEach(setRange);
+  ['grain','warp','glitch','animSpeed','morphAmt'].forEach(setRange);
   document.querySelectorAll('#animChips button').forEach(b=>b.classList.toggle('on',b.dataset.v===state.animType));
   const fsel=document.getElementById('fontSel'); if(fsel) fsel.value=state.textFont;
   const ti=document.getElementById('textInput'); if(ti) ti.value=state.text||'';
@@ -1590,6 +1638,29 @@ function init(){
     document.getElementById("animChips").querySelectorAll("button").forEach(x=>x.classList.remove("on"));
     b.classList.add("on"); state.animType=b.dataset.v; render(); refreshStrip();
   });
+  // ---- Auto-morph: the sigil's FORM keeps evolving on its own (live) ----
+  let _morphRAF=null, _morphLast=0;
+  function morphTick(now){
+    if(!state.autoMorph){ _morphRAF=null; return; }
+    _morphRAF=requestAnimationFrame(morphTick);
+    if(now-_morphLast < 60) return;                 // throttle ~16fps
+    _morphLast=now;
+    const t=now/1000, k=state.morphAmt, cl=(v,a,b)=>v<a?a:v>b?b:v;
+    state.spikiness=+cl(0.60+0.30*k*Math.sin(t*0.70)      ,0,1  ).toFixed(3);
+    state.curl     =Math.round(cl(18 +48*k*Math.sin(t*0.37+1.3),-90,90));
+    state.hook     =Math.round(cl(120+90*k*Math.sin(t*0.23+2.1),0,320));
+    state.holes    =+cl(0.45+0.32*k*Math.sin(t*0.53+3.4)  ,0,1  ).toFixed(3);
+    render();
+  }
+  function setAutoMorph(on){
+    state.autoMorph=on;
+    const b=document.getElementById("autoMorph");
+    b.classList.toggle("on",on); b.textContent="🫧 Auto-morph: "+(on?"on":"off");
+    if(on){ if(!_morphRAF) _morphRAF=requestAnimationFrame(morphTick); }
+    else { if(_morphRAF){cancelAnimationFrame(_morphRAF);_morphRAF=null;} syncAllUI(); }
+  }
+  document.getElementById("autoMorph").onclick=()=>setAutoMorph(!state.autoMorph);
+  slider("morphAmt","morphAmt",v=>v.toFixed(2).replace(/0$/,''));
   document.getElementById("expWebm").onclick=function(){exportWEBM(this);};
   ["stickerColor","echoColor","twoToneColor","patColor"].forEach(id=>{
     const el=document.getElementById(id); el.oninput=()=>{state[id]=el.value;render();refreshStrip();};
