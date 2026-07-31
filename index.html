@@ -138,11 +138,15 @@
         <div id="imgCtl" style="display:none;margin-top:6px">
           <div class="row"><label>Scale</label><input type="range" id="imgScale" min="0.15" max="1.6" step="0.01" value="0.6"><span class="val" id="imgScalev">.60</span></div>
           <div class="row"><label>Vertical</label><input type="range" id="imgY" min="-45" max="45" step="1" value="0"><span class="val" id="imgYv">0</span></div>
-          <div class="swatchrow"><label>In front</label>
-            <button class="tgl" id="imgFrontToggle">Off</button>
-            <button class="tgl" id="imgRemove">Remove</button>
+          <div class="row"><label>Layer</label>
+            <div class="seg" id="imgOrderSeg" style="flex:1">
+              <button data-v="back">Behind</button>
+              <button data-v="front">Front</button>
+              <button data-v="top">On top</button>
+            </div>
           </div>
-          <div class="foothint" style="text-align:left;margin-top:2px">Transparent PNGs work best — glow / sticker / echo / outline / pattern apply to the cut-out.</div>
+          <div class="row"><button class="tgl" id="imgRemove" style="flex:1">Remove image</button></div>
+          <div class="foothint" style="text-align:left;margin-top:2px">Behind / Front = under or over the mark (pattern + effects still apply to it). <b>On top</b> = above everything incl. the bg pattern, kept clean (no dots over it).</div>
         </div>
       </div>
       <div class="sec">
@@ -437,7 +441,7 @@ const state = {
   gelHue:"#ff3fa4", gelSW:0,
   sprayFill:"#ff2fa0", sprayGlow:"#7CFC00", sprayRough:0.35,
   neonColor:"#ff2fa0", glassTint:"#bfe9ff",
-  imgData:"", imgW:0, imgH:0, imgScale:0.6, imgY:0, imgFront:false,
+  imgData:"", imgW:0, imgH:0, imgScale:0.6, imgY:0, imgOrder:"back",
   text:"", textFont:"Bebas", textSize:150, textPos:"bottom", textTrack:2, textUpper:true, sub:"", subSize:52, textFit:false,
   treat:"solid", stickerColor:"#000000", stickerW:16,
   echo:0, echoColor:"#ff2fa0", echoOffset:18,
@@ -1130,7 +1134,13 @@ function buildSVG(forExport,animT,opts){
     layers=buildMark(state.seed);
   }
   const img=imageMarkup(W,H);               // uploaded PNG joins the composition
-  if(img) layers = state.imgFront ? layers+img : img+layers;
+  let imgTopLayer="";                       // "on top" images render above the pattern, excluded from its mask
+  if(img){
+    const ord=state.imgOrder||"back";
+    if(ord==="top") imgTopLayer=img;
+    else if(ord==="front") layers=layers+img;
+    else layers=img+layers;
+  }
   layers+=textLayerMarkup(W,H);             // wordmark, shares the finish
   const defs=buildFinishDefs()+buildLayerDefs()+buildBgDefs()+buildFxDefs();
   // ---- layer stack ----
@@ -1148,7 +1158,7 @@ function buildSVG(forExport,animT,opts){
     bgRect=`<rect x="0" y="0" width="${W}" height="${H}" fill="${fill}"/>`;
     if(state.bgPat!=="none") bgRect+=`<rect x="0" y="0" width="${W}" height="${H}" fill="url(#bgPat)" opacity="${state.bgPatOpacity}"/>`;
   }
-  let content=`${glowLayer}${behind}${sticker}${layers}${inner}${pattern}`;
+  let content=`${glowLayer}${behind}${sticker}${layers}${inner}${pattern}${imgTopLayer}`;
   if(state.warp>0)   content=`<g filter="url(#warpF)">${content}</g>`;
   if(state.glitch>0) content=`<g filter="url(#glitchF)">${content}</g>`;
   // ---- motion (multi-select COMBINE + optional CYCLE) ----
@@ -1388,6 +1398,7 @@ function syncAllUI(){
   ['textSize','textTrack','subSize'].forEach(setRange); segSet('textPosSeg',state.textPos);
   const up=document.getElementById('upperToggle'); if(up){up.classList.toggle('on',state.textUpper);up.textContent=state.textUpper?'On':'Off';}
   const fit=document.getElementById('fitToggle'); if(fit) fit.classList.toggle('on',state.textFit);
+  segSet('imgOrderSeg',state.imgOrder||'back');
 }
 function applyPreset(p){
   if(p.patch.styles) state.styles={flame:false,band:false,knot:false,...p.patch.styles};
@@ -1631,8 +1642,10 @@ function init(){
     r.readAsDataURL(f);
   };
   slider("imgScale","imgScale",v=>v.toFixed(2).replace(/^0/,'')); slider("imgY","imgY");
-  const iff=document.getElementById("imgFrontToggle");
-  iff.onclick=()=>{state.imgFront=!state.imgFront;iff.classList.toggle("on",state.imgFront);iff.textContent=state.imgFront?"On":"Off";render();refreshStrip();};
+  document.getElementById("imgOrderSeg").querySelectorAll("button").forEach(b=>b.onclick=()=>{
+    document.getElementById("imgOrderSeg").querySelectorAll("button").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on"); state.imgOrder=b.dataset.v; render(); refreshStrip();
+  });
   document.getElementById("imgRemove").onclick=()=>{
     state.imgData=""; document.getElementById("imgCtl").style.display="none"; document.getElementById("imgUpload").textContent="Upload PNG…";
     if(!Object.values(state.styles).some(Boolean)){state.styles.flame=true;document.querySelectorAll('#styleSeg button').forEach(x=>x.classList.toggle('on',!!state.styles[x.dataset.v]));}
