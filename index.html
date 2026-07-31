@@ -81,6 +81,10 @@
   #varStrip .vt.sel{border-color:var(--acc2);box-shadow:0 0 0 1px var(--acc2)}
   #varStrip .vt svg, #pinRow .vt svg{width:100%;height:100%;display:block}
   #pinRow{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
+  #pinRow .vt .del{position:absolute;top:1px;right:1px;width:15px;height:15px;line-height:14px;text-align:center;
+     border-radius:4px;background:rgba(10,10,14,.72);color:#fff;font-size:11px;border:0;cursor:pointer;opacity:0;transition:opacity .1s;padding:0}
+  #pinRow .vt:hover .del{opacity:1}
+  #pinRow .vt .del:hover{background:var(--acc2)}
   #shuffle{width:100%;display:flex;align-items:center;justify-content:center;gap:7px}
 </style>
 <style id="embedded-fonts">
@@ -111,9 +115,10 @@
         <div id="presetRow"></div>
       </div>
       <div class="sec">
-        <h2>Saved looks</h2>
-        <button class="btn ghost" id="pinBtn" style="width:100%">📌 Pin current look</button>
+        <h2>Gallery · your body of work</h2>
+        <button class="btn primary" id="pinBtn" style="width:100%">＋ Save to gallery</button>
         <div id="pinRow"></div>
+        <div class="foothint" id="galHint" style="text-align:left;margin-top:5px">Saved pieces persist on this device. Click a tile to restore it · ✕ to remove.</div>
         <div class="mini" style="margin-top:6px">
           <button class="btn ghost" id="copyLook">Copy code</button>
           <button class="btn ghost" id="loadLook">Load code</button>
@@ -137,7 +142,10 @@
         <button class="btn ghost" id="imgUpload" style="width:100%">Upload PNG…</button>
         <div id="imgCtl" style="display:none;margin-top:6px">
           <div class="row"><label>Scale</label><input type="range" id="imgScale" min="0.15" max="1.6" step="0.01" value="0.6"><span class="val" id="imgScalev">.60</span></div>
+          <div class="row"><label>Horizontal</label><input type="range" id="imgX" min="-45" max="45" step="1" value="0"><span class="val" id="imgXv">0</span></div>
           <div class="row"><label>Vertical</label><input type="range" id="imgY" min="-45" max="45" step="1" value="0"><span class="val" id="imgYv">0</span></div>
+          <div class="row"><label>Rotate</label><input type="range" id="imgRot" min="-180" max="180" step="1" value="0"><span class="val" id="imgRotv">0</span></div>
+          <div class="row"><label>Opacity</label><input type="range" id="imgOpacity" min="0.1" max="1" step="0.05" value="1"><span class="val" id="imgOpacityv">1</span></div>
           <div class="row"><label>Layer</label>
             <div class="seg" id="imgOrderSeg" style="flex:1">
               <button data-v="back">Behind</button>
@@ -441,7 +449,7 @@ const state = {
   gelHue:"#ff3fa4", gelSW:0,
   sprayFill:"#ff2fa0", sprayGlow:"#7CFC00", sprayRough:0.35,
   neonColor:"#ff2fa0", glassTint:"#bfe9ff",
-  imgData:"", imgW:0, imgH:0, imgScale:0.6, imgY:0, imgOrder:"back",
+  imgData:"", imgW:0, imgH:0, imgScale:0.6, imgX:0, imgY:0, imgRot:0, imgOpacity:1, imgOrder:"back",
   text:"", textFont:"Bebas", textSize:150, textPos:"bottom", textTrack:2, textUpper:true, sub:"", subSize:52, textFit:false,
   treat:"solid", stickerColor:"#000000", stickerW:16,
   echo:0, echoColor:"#ff2fa0", echoOffset:18,
@@ -1055,8 +1063,12 @@ function imageMarkup(W,H){
   if(!state.imgData) return "";
   const aw=state.imgW||1, ah=state.imgH||1;
   const tw=W*state.imgScale, th=tw*(ah/aw);
-  const x=(W-tw)/2, y=(H-th)/2 + (state.imgY/100)*H;
-  return `<image href="${state.imgData}" xlink:href="${state.imgData}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${tw.toFixed(1)}" height="${th.toFixed(1)}" preserveAspectRatio="xMidYMid meet"/>`;
+  const x=(W-tw)/2 + (state.imgX||0)/100*W, y=(H-th)/2 + (state.imgY/100)*H;
+  const cx=(x+tw/2).toFixed(1), cy=(y+th/2).toFixed(1);
+  const rot=state.imgRot||0, op=(state.imgOpacity==null?1:state.imgOpacity);
+  const im=`<image href="${state.imgData}" xlink:href="${state.imgData}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${tw.toFixed(1)}" height="${th.toFixed(1)}" preserveAspectRatio="xMidYMid meet"/>`;
+  if(rot||op<1){ const t=rot?` transform="rotate(${rot} ${cx} ${cy})"`:""; const o=op<1?` opacity="${op}"`:""; return `<g${t}${o}>${im}</g>`; }
+  return im;
 }
 /* text wordmark, painted with the CURRENT finish so it matches the sigil */
 function fontStack(key){
@@ -1399,6 +1411,9 @@ function syncAllUI(){
   const up=document.getElementById('upperToggle'); if(up){up.classList.toggle('on',state.textUpper);up.textContent=state.textUpper?'On':'Off';}
   const fit=document.getElementById('fitToggle'); if(fit) fit.classList.toggle('on',state.textFit);
   segSet('imgOrderSeg',state.imgOrder||'back');
+  ['imgScale','imgX','imgY','imgRot','imgOpacity'].forEach(setRange);
+  const ic=document.getElementById('imgCtl'); if(ic) ic.style.display=state.imgData?'block':'none';
+  const iu=document.getElementById('imgUpload'); if(iu) iu.textContent=state.imgData?'Replace PNG…':'Upload PNG…';
 }
 function applyPreset(p){
   if(p.patch.styles) state.styles={flame:false,band:false,knot:false,...p.patch.styles};
@@ -1414,14 +1429,32 @@ function looksState(withImg){ const o={}; for(const k in state){ if(k==='imgData
 function encodeLook(){ return btoa(unescape(encodeURIComponent(JSON.stringify(looksState(false))))); }
 function loadLookCode(code){ try{ const o=JSON.parse(decodeURIComponent(escape(atob(code.trim())))); Object.assign(state,o); syncAllUI(); render(); refreshStrip(); return true; }catch(e){ return false; } }
 let PINS=[];
-function pinCurrent(){ PINS.unshift(looksState(true)); if(PINS.length>12) PINS.pop(); renderPins(); }
+const GAL_KEY='csf_gallery_v1', GAL_MAX=48;
+function loadPins(){ try{ const s=localStorage.getItem(GAL_KEY); if(s) PINS=JSON.parse(s)||[]; }catch(e){ PINS=[]; } }
+function savePins(){
+  try{ localStorage.setItem(GAL_KEY, JSON.stringify(PINS)); return true; }
+  catch(e){ // quota exceeded or storage blocked (e.g. sandboxed viewer) — keep in-memory
+    const h=document.getElementById('galHint');
+    if(h) h.textContent = /quota/i.test(e.name||e.message||'')
+      ? "Gallery storage is full — remove a few pieces (✕) to save more."
+      : "Saved for this session only (this viewer blocks persistent storage; use the hosted URL or the file for it to stick).";
+    return false;
+  }
+}
+function pinCurrent(){ PINS.unshift(looksState(true)); if(PINS.length>GAL_MAX) PINS.pop(); savePins(); renderPins();
+  const b=document.getElementById('pinBtn'); if(b){ const t=b.textContent; b.textContent="✓ Saved"; setTimeout(()=>b.textContent=t,900); } }
+function deletePin(i){ PINS.splice(i,1); savePins(); renderPins(); }
 function renderPins(){
   const row=document.getElementById('pinRow'); if(!row) return;
   const cur=looksState(true); row.innerHTML='';
-  PINS.forEach(pin=>{
+  PINS.forEach((pin,i)=>{
     Object.assign(state,pin);
     const t=document.createElement('div'); t.className='vt'; t.innerHTML=buildSVG(false,null,{tile:true});
-    t.title='click to restore'; t.onclick=()=>{ Object.assign(state,pin); syncAllUI(); render(); refreshStrip(); };
+    t.title='click to restore';
+    t.onclick=()=>{ Object.assign(state,pin); syncAllUI(); render(); refreshStrip(); };
+    const x=document.createElement('button'); x.className='del'; x.textContent='✕'; x.title='remove';
+    x.onclick=(e)=>{ e.stopPropagation(); deletePin(i); };
+    t.appendChild(x);
     row.appendChild(t);
   });
   Object.assign(state,cur);
@@ -1641,7 +1674,8 @@ function init(){
       render(); refreshStrip(); }; im.src=r.result; };
     r.readAsDataURL(f);
   };
-  slider("imgScale","imgScale",v=>v.toFixed(2).replace(/^0/,'')); slider("imgY","imgY");
+  slider("imgScale","imgScale",v=>v.toFixed(2).replace(/^0/,'')); slider("imgX","imgX"); slider("imgY","imgY");
+  slider("imgRot","imgRot"); slider("imgOpacity","imgOpacity",v=>v.toFixed(2).replace(/0$/,''));
   document.getElementById("imgOrderSeg").querySelectorAll("button").forEach(b=>b.onclick=()=>{
     document.getElementById("imgOrderSeg").querySelectorAll("button").forEach(x=>x.classList.remove("on"));
     b.classList.add("on"); state.imgOrder=b.dataset.v; render(); refreshStrip();
@@ -1729,6 +1763,7 @@ function init(){
     else if(e.key==="e"||e.key==="E"){exportSVG();}
   });
   renderFinishCtl(); updGoldRow(); bgPresets(); syncSliders(); render(); shuffleStrip();
+  loadPins(); renderPins();
 }
 init();
 </script>
