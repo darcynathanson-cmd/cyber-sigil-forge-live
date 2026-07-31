@@ -1104,7 +1104,8 @@ function textLayerMarkup(W,H){
 }
 
 /* ---------- assemble the whole SVG (layers selected styles) ---------- */
-function buildSVG(forExport,animT){
+function buildSVG(forExport,animT,opts){
+  opts=opts||{};
   const H=1000, W=Math.round(1000*state.ratio);
   const F=state.finish, outlineMode=state.treat==="outline";
   const bevelFins={chrome:'chromeFX',gel:'gelFX',holo:'holoFX',glass:'glassFX'};
@@ -1152,13 +1153,13 @@ function buildSVG(forExport,animT){
   if(state.glitch>0) content=`<g filter="url(#glitchF)">${content}</g>`;
   // ---- motion ----
   let animStyle="", extraDefs="";
-  const A=state.animType, cx=W/2, cy=H/2, aSp=state.animSpeed||1;
+  const A=opts.tile?"none":state.animType, cx=W/2, cy=H/2, aSp=state.animSpeed||1;
   // liquid/organic motion: an animated displacement (or gooey) filter over the whole mark.
   // Works as SMIL for live preview AND for the exported standalone SVG (self-animating),
   // and as a baked static filter per frame for raster/WEBM export.
   const LIQ={boil:  {ty:"turbulence",  bf:0.030, bf2:0.060, sc:14, oct:2, dur:2.4},
              liquid:{ty:"fractalNoise",bf:0.010, bf2:0.017, sc:24, oct:2, dur:5.0},
-             morph: {ty:"fractalNoise",bf:0.005, bf2:0.010, sc:48, oct:3, dur:8.0},
+             morph: {ty:"fractalNoise",bf:0.005, bf2:0.010, sc:48, oct:2, dur:8.0},
              ripple:{ty:"fractalNoise",bf:0.012, bf2:0.012, sc:34, oct:2, dur:3.0, pulse:1}};
   if(A&&A!=="none"){
     if(LIQ[A]){
@@ -1209,7 +1210,7 @@ function buildSVG(forExport,animT){
     const dx=(state.offX/100*W).toFixed(1), dy=(state.offY/100*H).toFixed(1), s=state.markScale, r=state.rotate;
     content=`<g transform="translate(${dx},${dy}) rotate(${r} ${cx} ${cy}) translate(${cx},${cy}) scale(${s}) translate(${-cx},${-cy})">${content}</g>`;
   }
-  const grain=state.grain>0 ? `<rect x="0" y="0" width="${W}" height="${H}" filter="url(#grainF)" opacity="${(state.grain*0.6).toFixed(2)}" style="mix-blend-mode:overlay"/>` : "";
+  const grain=(!opts.tile&&state.grain>0) ? `<rect x="0" y="0" width="${W}" height="${H}" filter="url(#grainF)" opacity="${(state.grain*0.6).toFixed(2)}" style="mix-blend-mode:overlay"/>` : "";
   return `<svg xmlns="${SVGNS}" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" ${forExport?'':'preserveAspectRatio="xMidYMid meet"'}>
   <defs>${defs}${extraDefs}</defs>
   ${animStyle}
@@ -1220,9 +1221,13 @@ function buildSVG(forExport,animT){
 }
 
 /* ---------- render into stage ---------- */
+let _renderRAF=0;
 function render(){
-  document.getElementById("frameWrap").innerHTML=buildSVG(false);
-  document.getElementById("seedTag").textContent="seed "+state.seed;
+  if(_renderRAF) return;                         // coalesce bursts into one paint per frame
+  _renderRAF=requestAnimationFrame(()=>{ _renderRAF=0;
+    document.getElementById("frameWrap").innerHTML=buildSVG(false);
+    document.getElementById("seedTag").textContent="seed "+state.seed;
+  });
 }
 
 /* ================= UI wiring ================= */
@@ -1235,7 +1240,8 @@ function seg(id,key,after){
     state[key]=v; if(after)after(v); render(); refreshStrip();
   });
 }
-function refreshStrip(){ if(VARIANTS.length) renderVariants(); }
+let _stripT=0;
+function refreshStrip(){ if(!VARIANTS.length) return; clearTimeout(_stripT); _stripT=setTimeout(renderVariants,180); }
 function slider(id,key,fmt,after){
   const el=document.getElementById(id), out=document.getElementById(id+"v");
   el.oninput=()=>{ state[key]=+el.value; if(out)out.textContent=fmt?fmt(+el.value):el.value; if(after)after(); render(); };
@@ -1466,7 +1472,7 @@ function renderVariants(){
   VARIANTS.forEach(v=>{
     VAR_KEYS.forEach(k=>state[k]=v[k]);
     const tile=document.createElement("div"); tile.className="vt";
-    tile.innerHTML=buildSVG(false);
+    tile.innerHTML=buildSVG(false,null,{tile:true});
     if(v.seed===saved.seed) tile.classList.add("sel");
     tile.onclick=()=>{ applyVariant(v); renderVariants(); };
     strip.appendChild(tile);
