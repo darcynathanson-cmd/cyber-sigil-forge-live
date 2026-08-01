@@ -497,6 +497,7 @@
         <button id="dExpSvg">SVG (vector)</button>
         <button id="dExpPng">PNG ×2</button>
         <button id="dExpWebm">WEBM (this motion)</button>
+        <button id="dReelMorph">🎬 Morph clip (this design)</button>
         <button id="dReelMotions">🎬 Reel · all motions</button>
         <button id="dReelVariety">🎬 Reel · variety mix</button>
       </div>
@@ -627,10 +628,11 @@
     <div class="emGroup">
       <div class="emLbl">Showcase reel · video</div>
       <div class="emBtns">
+        <button class="btn ghost" id="reelMorph" style="grid-column:1 / -1">🎬 Morph clip — this design, constantly morphing</button>
         <button class="btn ghost" id="reelMotions">🎬 All motions</button>
         <button class="btn ghost" id="reelVariety">🎬 Variety mix</button>
       </div>
-      <div class="emHint" style="margin-top:6px">One video that cycles looks. <b>All motions</b> = this design through every motion. <b>Variety mix</b> = 8 fresh shapes/finishes/patterns (keeps anything you've Locked). Takes ~30–60s to render.</div>
+      <div class="emHint" style="margin-top:6px"><b>Morph clip</b> = your current design (all of it) endlessly contorting — seamless loop. <b>All motions</b> = this design through every motion. <b>Variety mix</b> = 8 fresh looks (keeps anything Locked). Each takes ~20–60s to render.</div>
     </div>
     <div class="emGroup">
       <div class="emLbl">Your gallery</div>
@@ -2046,6 +2048,56 @@ async function exportReel(mode,btn,segsOverride){
   if(btn){btn.textContent=label;btn.disabled=false;}
 }
 
+/* ---- Morph clip: the CURRENT design, constantly contorting (all elements) ----
+   Oscillates the current design's dials around their present values (so the look you
+   built/shuffled is the home base) and drifts the background/pattern/echo too, baking
+   a seamless liquid loop. Whatever's on screen — emblem, bg, pattern, echo, size — flexes. */
+async function exportMorph(btn){
+  const label=btn?btn.textContent:"";
+  const setBtn=t=>{ if(btn){btn.textContent=t;btn.disabled=true;} };
+  const snap=looksState(true), snapSet=(state.animSet||[]).slice(), snapType=state.animType, snapCyc=state.animCycle;
+  try{
+    if(!window.MediaRecorder) throw new Error("MediaRecorder unavailable");
+    REELING=true; state.animCycle=false;
+    if(!(state.animSet&&state.animSet.length)){ state.animSet=['liquid']; state.animType='liquid'; }   // ensure flowing surface
+    const H=1000,W=Math.round(1000*state.ratio),fps=24,total=96;
+    const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+    const c={spikiness:state.spikiness,curl:state.curl,hook:state.hook,holes:state.holes,edge:state.edge,size:state.size,rotate:state.rotate,bgAngle:state.bgAngle,bgPatScale:state.bgPatScale,echoOffset:state.echoOffset};
+    setBtn("Baking…");
+    const frames=[];
+    for(let i=0;i<total;i++){
+      const ph=2*Math.PI*i/total;   // integer harmonics → seamless loop, always in motion
+      state.spikiness=clamp(c.spikiness+0.18*Math.sin(ph),0.2,0.95);
+      state.curl=c.curl+45*Math.sin(2*ph);
+      state.hook=clamp(c.hook+110*Math.sin(ph+1.3),40,320);
+      state.holes=clamp(c.holes+0.24*Math.sin(3*ph),0.15,0.85);
+      state.edge=clamp(c.edge+0.08*Math.sin(2*ph+0.7),0.3,0.75);
+      state.size=c.size+0.04*Math.sin(ph);
+      state.rotate=c.rotate+6*Math.sin(ph);
+      state.bgAngle=c.bgAngle+60*Math.sin(ph);
+      state.bgPatScale=clamp(c.bgPatScale+8*Math.sin(2*ph),8,60);
+      state.echoOffset=clamp(c.echoOffset+8*Math.sin(ph+1),0,40);
+      frames.push(await rasterFrame(i/total,W,H));
+      if(i%12===0) setBtn(`Baking ${Math.round(i/total*100)}%…`);
+    }
+    const cv=document.createElement("canvas");cv.width=W;cv.height=H;const ctx=cv.getContext("2d");
+    const stream=cv.captureStream(fps);
+    const mime=["video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"].find(m=>MediaRecorder.isTypeSupported(m))||"video/webm";
+    const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:12000000});
+    const chunks=[];rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
+    const done=new Promise(r=>rec.onstop=r);
+    setBtn("Recording…"); rec.start();
+    for(let loop=0;loop<3;loop++) for(let i=0;i<total;i++){ ctx.clearRect(0,0,W,H); ctx.drawImage(frames[i],0,0,W,H); await new Promise(r=>setTimeout(r,1000/fps)); }
+    rec.stop(); await done;
+    frames.forEach(f=>{ try{ f.close&&f.close(); }catch(e){} });
+    download(`cyber-sigil-morph-${state.seed}.webm`, new Blob(chunks,{type:"video/webm"}));
+  }catch(e){ alert("Morph export failed — this browser may not support video recording. Try Chrome/Edge. ("+e.message+")"); }
+  REELING=false;
+  Object.assign(state,snap); state.animSet=snapSet; state.animType=snapType; state.animCycle=snapCyc;
+  syncAllUI(); render(); refreshStrip();
+  if(btn){btn.textContent=label;btn.disabled=false;}
+}
+
 /* init */
 /* ===================== SIMPLE MODE ===================== */
 function buildDockPresets(){
@@ -2094,6 +2146,7 @@ function buildSimpleDock(){
   document.getElementById('dExpSvg').onclick=()=>{ menu.classList.remove('open'); exportSVG(); };
   document.getElementById('dExpPng').onclick=()=>{ menu.classList.remove('open'); exportPNG(2); };
   document.getElementById('dExpWebm').onclick=()=>{ menu.classList.remove('open'); exportWEBM(document.getElementById('dockExport')); };
+  document.getElementById('dReelMorph').onclick=()=>{ menu.classList.remove('open'); exportMorph(document.getElementById('dockExport')); };
   document.getElementById('dReelMotions').onclick=()=>{ menu.classList.remove('open'); exportReel('motions',document.getElementById('dockExport')); };
   document.getElementById('dReelVariety').onclick=()=>{ menu.classList.remove('open'); exportReel('variety',document.getElementById('dockExport')); };
   // motion menu
@@ -2313,6 +2366,7 @@ function init(){
   document.getElementById("expSvg").onclick=exportSVG;
   document.getElementById("expPng").onclick=()=>exportPNG(2);
   document.getElementById("expPng4").onclick=()=>exportPNG(4);
+  document.getElementById("reelMorph").onclick=function(){exportMorph(this);};
   document.getElementById("reelMotions").onclick=function(){exportReel('motions',this);};
   document.getElementById("reelVariety").onclick=function(){exportReel('variety',this);};
   // ---- image ----
