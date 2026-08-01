@@ -85,6 +85,14 @@
      border-radius:4px;background:rgba(10,10,14,.72);color:#fff;font-size:11px;border:0;cursor:pointer;opacity:0;transition:opacity .1s;padding:0}
   #pinRow .vt:hover .del{opacity:1}
   #pinRow .vt .del:hover{background:var(--acc2)}
+  #seriesRow{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:8px}
+  #seriesRow .vt{aspect-ratio:1;border:1px solid var(--line);border-radius:6px;overflow:hidden;cursor:pointer;background:#0f0f14;position:relative;transition:transform .1s}
+  #seriesRow .vt:hover{transform:translateY(-2px)}
+  #seriesRow .vt svg{width:100%;height:100%;display:block}
+  #seriesRow .vt .add{position:absolute;top:1px;right:1px;width:16px;height:16px;line-height:15px;text-align:center;
+     border-radius:4px;background:rgba(10,10,14,.72);color:var(--acc);font-size:12px;border:0;cursor:pointer;opacity:0;transition:opacity .1s;padding:0}
+  #seriesRow .vt:hover .add{opacity:1}
+  #seriesRow .vt .add:hover{background:var(--acc);color:#0b0b0e}
   #shuffle{width:100%;display:flex;align-items:center;justify-content:center;gap:7px}
 </style>
 <style id="embedded-fonts">
@@ -135,6 +143,14 @@
         </div>
         <div class="presetrow" id="palPresets" style="margin-top:8px"></div>
         <div class="foothint" style="text-align:left">Set 2–3 colors → Apply, or let Randomize pull from them.</div>
+      </div>
+      <div class="sec">
+        <h2>Series · cohesive family</h2>
+        <div class="row"><label>Count</label><input type="range" id="seriesN" min="4" max="16" step="1" value="8"><span class="val" id="seriesNv">8</span></div>
+        <button class="btn ghost" id="genSeries" style="width:100%">🎞 Generate series (shapes only)</button>
+        <div id="seriesRow"></div>
+        <button class="btn primary" id="saveSeries" style="width:100%;margin-top:6px;display:none">＋ Save all to gallery</button>
+        <div class="foothint" style="text-align:left;margin-top:5px">Keeps your palette, finish, motion &amp; layout — rolls only the shape, so the set reads as one family. Click a tile to load it · ✚ saves one · or Save all.</div>
       </div>
       <div class="sec">
         <h2>Image / mixed media</h2>
@@ -459,7 +475,7 @@ const state = {
   animType:"none", animSet:[], animSpeed:1, animCycle:false, cycleSecs:5,
   offX:0, offY:0, markScale:1, rotate:0,
   locks:{finish:false,colors:false,layout:false,fx:false},
-  palette:["#ff2fa0","#7CFC00","#0b0b12"], bgPatOpacity:0.5,
+  palette:["#ff2fa0","#7CFC00","#0b0b12"], bgPatOpacity:0.5, seriesN:8,
   seed: 12345
 };
 
@@ -1411,7 +1427,7 @@ function syncAllUI(){
   const up=document.getElementById('upperToggle'); if(up){up.classList.toggle('on',state.textUpper);up.textContent=state.textUpper?'On':'Off';}
   const fit=document.getElementById('fitToggle'); if(fit) fit.classList.toggle('on',state.textFit);
   segSet('imgOrderSeg',state.imgOrder||'back');
-  ['imgScale','imgX','imgY','imgRot','imgOpacity'].forEach(setRange);
+  ['imgScale','imgX','imgY','imgRot','imgOpacity','seriesN'].forEach(setRange);
   const ic=document.getElementById('imgCtl'); if(ic) ic.style.display=state.imgData?'block':'none';
   const iu=document.getElementById('imgUpload'); if(iu) iu.textContent=state.imgData?'Replace PNG…':'Upload PNG…';
 }
@@ -1458,6 +1474,34 @@ function renderPins(){
     row.appendChild(t);
   });
   Object.assign(state,cur);
+}
+/* ---- Series: roll ONLY the shape (keep palette/finish/motion/layout) → a cohesive family ---- */
+let SERIES=[];
+function genSeries(){
+  const n=+(document.getElementById('seriesN').value||8);
+  SERIES=Array.from({length:n},makeVariant);          // makeVariant rolls VAR_KEYS (shape) only
+  renderSeries();
+  const sv=document.getElementById('saveSeries'); if(sv) sv.style.display='block';
+}
+function renderSeries(){
+  const row=document.getElementById('seriesRow'); if(!row) return;
+  const cur=looksState(true); row.innerHTML='';
+  SERIES.forEach(v=>{
+    VAR_KEYS.forEach(k=>state[k]=v[k]);
+    const t=document.createElement('div'); t.className='vt'; t.innerHTML=buildSVG(false,null,{tile:true});
+    t.title='click to load into the canvas';
+    t.onclick=()=>{ applyVariant(v); };
+    const a=document.createElement('button'); a.className='add'; a.textContent='✚'; a.title='save this one to gallery';
+    a.onclick=(e)=>{ e.stopPropagation(); const c=looksState(true); VAR_KEYS.forEach(k=>state[k]=v[k]); pinCurrent(); Object.assign(state,c); };
+    t.appendChild(a); row.appendChild(t);
+  });
+  Object.assign(state,cur);
+}
+function saveSeriesAll(){
+  const cur=looksState(true);
+  for(let i=SERIES.length-1;i>=0;i--){ VAR_KEYS.forEach(k=>state[k]=SERIES[i][k]); pinCurrent(); }  // reverse → gallery keeps series order
+  Object.assign(state,cur); syncAllUI(); render();
+  const b=document.getElementById('saveSeries'); if(b){ const t=b.textContent; b.textContent="✓ Saved to gallery"; setTimeout(()=>b.textContent=t,1000); }
 }
 /* full chaos roll — everything except the user's text */
 function pick(a){return a[Math.floor(Math.random()*a.length)];}
@@ -1658,6 +1702,9 @@ function init(){
   document.getElementById("shuffle").onclick=randomizeAll;
   document.getElementById("randAll").onclick=randomizeEverything;
   document.getElementById("pinBtn").onclick=pinCurrent;
+  slider("seriesN","seriesN",v=>String(Math.round(v)));
+  document.getElementById("genSeries").onclick=genSeries;
+  document.getElementById("saveSeries").onclick=saveSeriesAll;
   document.getElementById("copyLook").onclick=()=>{const code=encodeLook();const el=document.getElementById("lookCode");el.value=code;el.focus();el.select();try{navigator.clipboard&&navigator.clipboard.writeText(code);}catch(e){}const btn=document.getElementById("copyLook");const t=btn.textContent;btn.textContent="Copied!";setTimeout(()=>btn.textContent=t,1200);};
   document.getElementById("loadLook").onclick=()=>{const ok=loadLookCode(document.getElementById("lookCode").value);const btn=document.getElementById("loadLook");if(!ok){const t=btn.textContent;btn.textContent="Bad code";setTimeout(()=>btn.textContent=t,1200);}};
   document.getElementById("expSvg").onclick=exportSVG;
