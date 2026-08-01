@@ -1725,7 +1725,8 @@ let _renderRAF=0;
 function render(){
   if(_renderRAF) return;                         // coalesce bursts into one paint per frame
   _renderRAF=requestAnimationFrame(()=>{ _renderRAF=0;
-    document.getElementById("frameWrap").innerHTML=buildSVG(false);
+    if(window.csfBeforeRender) window.csfBeforeRender();
+    document.getElementById("frameWrap").innerHTML=buildSVG(false, window.CSF_STATIC?0:undefined);
     document.getElementById("seedTag").textContent="seed "+state.seed;
     if(typeof positionGuides==="function") positionGuides();
   });
@@ -2857,6 +2858,288 @@ init();
   body.classList.remove("simple");
   safe(function(){ if(typeof renderMotionStrip==="function") renderMotionStrip(); });
   goMode("simple");
+})();
+</script>
+
+<script>
+/* ============ SEAMLESS PASS (additive; does not alter the engine) ============
+   1) Browse-static: idle preview draws a still frame so rerolling is instant.
+      Motion is only previewed when you ask for it; EXPORT always bakes motion.
+   2) Reroll history: every roll/preset/variant is snapshotted -> step with < / >.
+   3) Keep: S (or the toolbar star) saves the current piece to the gallery.
+============================================================================ */
+(function(){
+  function boot(){
+    if(window.__csfSeamless) return; window.__csfSeamless=true;
+
+    /* default: freeze motion while browsing (this is the anti-lag win) */
+    window.CSF_STATIC = true;
+
+    /* ---------- history ---------- */
+    var HIST=[], HI=-1, NAV=false, BUSY=false, MAX=30;
+    function snap(){ try{ return looksState(true); }catch(e){ return null; } }
+    function lite(s){ if(!s) return ""; var o={}; for(var k in s){ if(k==='imgData') continue; o[k]=s[k]; } return JSON.stringify(o); }
+    function push(){
+      if(NAV) return;
+      var s=snap(); if(!s) return;
+      if(HI>=0 && lite(HIST[HI])===lite(s)) return;   // dedupe no-op rolls
+      HIST.splice(HI+1);                              // drop redo branch
+      HIST.push(s); if(HIST.length>MAX){ HIST.shift(); } HI=HIST.length-1;
+      updBar();
+    }
+    function restore(i){
+      if(i<0||i>=HIST.length) return;
+      HI=i; NAV=true;
+      try{
+        Object.assign(state, JSON.parse(JSON.stringify(HIST[i])));
+        if(typeof stopMorphPlay==='function' && window.morphPlaying) stopMorphPlay();
+        if(typeof syncAllUI==='function') syncAllUI();
+        if(typeof render==='function') render();
+      }catch(e){}
+      NAV=false; updBar();
+    }
+    function back(){ restore(HI-1); }
+    function fwd(){ restore(HI+1); }
+
+    /* push AFTER the engine's synchronous roll handler + state update settle */
+    function pushSoon(){ requestAnimationFrame(function(){ requestAnimationFrame(push); }); }
+
+    /* wrap high-level "commit" fns so each records exactly one entry */
+    ['randomizeAll','randomizeEverything','applyVariant','applyPreset'].forEach(function(name){
+      var orig=window[name];
+      if(typeof orig!=='function') return;
+      window[name]=function(){
+        var outer=!BUSY; BUSY=true;
+        try{ return orig.apply(this,arguments); }
+        finally{ if(outer){ BUSY=false; if(!NAV) push(); } }
+      };
+    });
+
+    /* ---------- keep ---------- */
+    function keep(){ if(typeof pinCurrent==='function'){ pinCurrent(); flash(keepBtn,'★ Kept'); } }
+
+    /* ---------- motion toggle ---------- */
+    function setMotion(on){
+      window.CSF_STATIC=!on;
+      if(!on && typeof stopMorphPlay==='function' && window.morphPlaying) stopMorphPlay();
+      if(typeof render==='function') render();
+      updBar();
+    }
+    function toggleMotion(){ setMotion(!!window.CSF_STATIC); }
+
+    function motionSelected(){
+      try{ return (state.animSet&&state.animSet.length)||(state.animType&&state.animType!=='none'); }catch(e){ return false; }
+    }
+
+    /* ---------- floating toolbar ---------- */
+    var bar=document.createElement('div');
+    bar.id='csfBar';
+    bar.style.cssText='position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:60;'
+      +'display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:12px;'
+      +'background:rgba(14,14,18,.82);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);'
+      +'box-shadow:0 6px 24px rgba(0,0,0,.45);font:12px/1.2 system-ui,-apple-system,Segoe UI,sans-serif;color:#e8e8ee;user-select:none';
+    function mkBtn(html,title){
+      var b=document.createElement('button');
+      b.type='button'; b.innerHTML=html; b.title=title||'';
+      b.style.cssText='all:unset;cursor:pointer;padding:6px 10px;border-radius:8px;'
+        +'background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);white-space:nowrap';
+      b.onmouseenter=function(){ b.style.background='rgba(255,255,255,.14)'; };
+      b.onmouseleave=function(){ b.style.background='rgba(255,255,255,.06)'; };
+      return b;
+    }
+    function flash(b,txt){ if(!b)return; var o=b.innerHTML; b.innerHTML=txt; setTimeout(function(){ b.innerHTML=o; updBar(); },850); }
+
+    var backBtn=mkBtn('&#9664;','Previous roll  (←)');
+    var fwdBtn =mkBtn('&#9654;','Next roll  (→)');
+    var motBtn =mkBtn('⏸ Motion off','Preview motion on/off while browsing  (M) — export always includes motion');
+    var keepBtn=mkBtn('☆ Keep','Keep this piece to the gallery  (S)');
+    var sep=document.createElement('span'); sep.style.cssText='width:1px;height:20px;background:rgba(255,255,255,.14);margin:0 2px';
+
+    backBtn.onclick=back; fwdBtn.onclick=fwd; motBtn.onclick=toggleMotion; keepBtn.onclick=keep;
+    bar.appendChild(backBtn); bar.appendChild(fwdBtn); bar.appendChild(sep);
+    bar.appendChild(motBtn); bar.appendChild(keepBtn);
+    document.body.appendChild(bar);
+
+    function updBar(){
+      backBtn.style.opacity=(HI>0)?'1':'.35';
+      fwdBtn.style.opacity =(HI>=0&&HI<HIST.length-1)?'1':'.35';
+      var pos=(HIST.length? (HI+1)+'/'+HIST.length : '–');
+      backBtn.title='Previous roll  (←)   •   '+pos;
+      if(window.CSF_STATIC){
+        motBtn.innerHTML='⏸ Motion off'+(motionSelected()?' <span style="color:#7CF6C9">●</span>':'');
+        motBtn.style.color='#cfcfd6';
+      }else{
+        motBtn.innerHTML='▶ Motion on';
+        motBtn.style.color='#7CF6C9';
+      }
+    }
+
+    /* ---------- keyboard ---------- */
+    window.addEventListener('keydown',function(e){
+      var t=e.target; if(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'||t.isContentEditable)) return;
+      if(e.key==='ArrowLeft'){ e.preventDefault(); back(); }
+      else if(e.key==='ArrowRight'){ e.preventDefault(); fwd(); }
+      else if(e.key==='s'||e.key==='S'){ e.preventDefault(); keep(); }
+      else if(e.key==='m'||e.key==='M'){ e.preventDefault(); toggleMotion(); }
+      else if(e.code==='Space'){ pushSoon(); }   /* engine handles the new seed; we record it */
+    });
+
+    /* engine's own reseed buttons: record without clobbering their handlers */
+    ['s_seed','reseed','pinBtn','simplePin','s_shuffle','randAll','dockShuffle'].forEach(function(id){
+      var el=document.getElementById(id); if(el) el.addEventListener('click', pushSoon);
+    });
+
+    /* refresh hints to mention the new shortcuts */
+    var h=document.getElementById('hint'); if(h) h.textContent='Space new seed · ← → history · S keep · M motion · E export';
+    document.querySelectorAll('.foothint').forEach(function(f){ f.textContent='Space new seed · ← → step through rolls · S keep to gallery · M preview motion'; });
+
+    /* seed history with the opening look */
+    push();
+  }
+  if(document.readyState==='complete'||document.readyState==='interactive'){ setTimeout(boot,0); }
+  else { window.addEventListener('load',boot); }
+})();
+</script>
+
+<script>
+/* ============ OPTICAL CENTERING (additive) ============================
+   Different archetypes (crest/fan/column/...) sit at different heights, so
+   "center" that merely zeroes offsets does NOT visually align them. Here we
+   measure each mark's true ink bbox (getBBox on a clean offscreen copy) and
+   set state.offX/offY so the mark's centre lands on the canvas centre — for
+   the live top mark AND every stacked layer. Writes the existing offX/offY,
+   so EXPORT (which reads them) comes out identically centred.
+====================================================================== */
+(function(){
+  function boot(){
+    if(window.__csfCenter) return; window.__csfCenter=true;
+
+    var TARGET_Y=0.49;      /* mark centre at 49% of height = a subtle optical lift */
+    var _host=null;
+    function measHost(){
+      if(_host) return _host;
+      _host=document.createElement('div');
+      _host.style.cssText='position:absolute;left:-99999px;top:0;width:800px;height:1000px;visibility:hidden;pointer-events:none';
+      document.body.appendChild(_host);
+      return _host;
+    }
+
+    /* measure the CURRENT state's mark and return {offX,offY} (%) that centre it.
+       Scale/rotate are applied around the canvas centre, so we measure at scale 1
+       / rotate 0 and fold the current markScale back into the maths. */
+    function centerOffsets(){
+      if(typeof markBlock!=='function') return null;
+      var K=['warp','glitch','echo','glow','twoTone','transparent','pattern','finish',
+             'treat','offX','offY','markScale','rotate','animSet','animType','animCycle','grain'];
+      var saved={}; for(var i=0;i<K.length;i++) saved[K[i]]=state[K[i]];
+      var sMark=(typeof saved.markScale==='number')?saved.markScale:1;
+      state.warp=0; state.glitch=0; state.echo=0; state.glow=false; state.twoTone=false;
+      state.transparent=true; state.pattern='none'; state.finish='flat'; state.treat='';
+      state.offX=0; state.offY=0; state.markScale=1; state.rotate=0; state.grain=0;
+      state.animSet=[]; state.animType='none'; state.animCycle=false;
+      var off=null;
+      try{
+        var b=markBlock(null,{});
+        var W=b.W, H=b.H, cx=W/2, cy=H/2;
+        var host=measHost();
+        host.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'"><defs>'+b.defs+'</defs>'+b.content+'</svg>';
+        var el=host.querySelector('svg'), bb=el.getBBox();
+        if(bb.width>0.5 && bb.height>0.5){
+          var cxm=bb.x+bb.width/2, cym=bb.y+bb.height/2;
+          var dyOff=(H*TARGET_Y) - cy - sMark*(cym-cy);
+          var dxOff=(W*0.5)      - cx - sMark*(cxm-cx);
+          var ox=+(dxOff/W*100).toFixed(1), oy=+(dyOff/H*100).toFixed(1);
+          ox=Math.max(-50,Math.min(50,ox)); oy=Math.max(-50,Math.min(50,oy));
+          off={offX:ox, offY:oy};
+        }
+      }catch(e){}
+      for(var j=0;j<K.length;j++) state[K[j]]=saved[K[j]];
+      return off;
+    }
+    window.csfCenterOffsets=centerOffsets;
+
+    /* ---- live top-mark centering (called from render() before each paint) ---- */
+    var _lastSig=null;
+    function shapeSig(){
+      try{
+        return [state.mode,state.arch,state.frameLayers,state.seed,state.complexity,
+                state.spikiness,state.curl,state.hook,state.barb,state.holes,state.size,
+                state.symN,state.edge,state.markScale,state.treat,state.alignMode,
+                (state.imgData?1:0)].join('|');
+      }catch(e){ return Math.random()+''; }
+    }
+    window.csfBeforeRender=function(){
+      try{
+        var m=state.alignMode;
+        if(m!=='center' && m!=='vaxis') return;
+        if(window.morphPlaying) return;               // don't fight the morph loop
+        var sig=shapeSig();
+        if(sig===_lastSig) return;                    // only re-measure when the shape changes
+        var off=centerOffsets();
+        _lastSig=sig;
+        if(!off) return;
+        if(m==='center'){ state.offX=off.offX; state.offY=off.offY; }
+        else { state.offX=0; }                         /* vaxis: centre X only, Y stays free */
+        var ex=document.getElementById('offX'), oxv=document.getElementById('offXv');
+        var ey=document.getElementById('offY'), oyv=document.getElementById('offYv');
+        if(ex){ ex.value=state.offX; if(oxv) oxv.textContent=state.offX; }
+        if(m==='center' && ey){ ey.value=state.offY; if(oyv) oyv.textContent=state.offY; }
+      }catch(e){}
+    };
+
+    /* ---- override applyAlign: centre EVERY comp layer + the top mark ---- */
+    var _origAlign=window.applyAlign;
+    window.applyAlign=function(){
+      var m=state.alignMode||'free';
+      if(m==='free'){ return _origAlign ? _origAlign.apply(this,arguments)
+                                        : (typeof syncAllUI==='function'&&syncAllUI(), render()); }
+      _lastSig=null;                                   // force the top mark to re-measure
+      try{
+        var cur=looksState(true);
+        if(Array.isArray(COMP)) COMP.forEach(function(layer){
+          Object.assign(state,layer); state.ratio=cur.ratio;
+          var off=centerOffsets();
+          if(m==='center'){ layer.offX=off?off.offX:0; layer.offY=off?off.offY:0; }
+          else { layer.offX=0; }                       /* vaxis: leave layer.offY */
+        });
+        Object.assign(state,cur);
+        var offT=centerOffsets();
+        if(m==='center'){ state.offX=offT?offT.offX:0; state.offY=offT?offT.offY:0; }
+        else { state.offX=0; }
+      }catch(e){}
+      if(typeof syncAllUI==='function') syncAllUI();
+      if(typeof renderCompList==='function') renderCompList();
+      render();
+    };
+
+    /* ---- wrap randomComp: re-centre the freshly built stack ---- */
+    var _origRC=window.randomComp;
+    if(typeof _origRC==='function'){
+      window.randomComp=function(){
+        var r=_origRC.apply(this,arguments);
+        try{ if(state.alignMode==='center'||state.alignMode==='vaxis') window.applyAlign(); }catch(e){}
+        return r;
+      };
+    }
+
+    /* ---- manual Move X / Move Y drag => drop to free (don't fight the user) ----
+       capture phase so this runs BEFORE the slider's own oninput+render. */
+    document.addEventListener('input',function(e){
+      var t=e.target; if(!t) return;
+      if(t.id==='offX'||t.id==='offY'||t.id==='markScale'){
+        if(t.id!=='markScale' && state.alignMode!=='free'){
+          state.alignMode='free';
+          if(typeof segSet==='function') segSet('alignSeg','free');
+        }
+        _lastSig=null;   /* markScale changed -> top mark must re-centre next paint */
+      }
+    },true);
+
+    /* centre whatever is on screen at startup */
+    try{ if(state.alignMode==='center'||state.alignMode==='vaxis'){ _lastSig=null; render(); } }catch(e){}
+  }
+  if(document.readyState==='complete'||document.readyState==='interactive'){ setTimeout(boot,0); }
+  else { window.addEventListener('load',boot); }
 })();
 </script>
 </body>
