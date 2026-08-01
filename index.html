@@ -470,11 +470,15 @@
   <button class="sbtn" id="toFullBtn" title="Open the full editor with every control">⤢ Full editor</button>
 </div>
 <div id="simpleDock">
-  <div class="dhint">Pick a look · <b>Shuffle</b> for variations · <b>Keep</b> what you like · Export when it's cool</div>
+  <div class="dhint"><b>1</b> Pick a look · <b>2</b> Shuffle &amp; Keep what you like · <b>3</b> add Motion · <b>4</b> Export (or 🎬 reel video) <button id="openGuide" title="Show the quick guide">? Guide</button></div>
   <div id="dockPresets"></div>
   <div id="dockRow">
     <button class="dshuffle" id="dockShuffle" title="Roll a new variation (respects what you Keep)">⟳ Shuffle</button>
     <button class="dchip" id="dockSeed" title="New random shape only">⚲ Shape</button>
+    <div class="dexp">
+      <button class="dshuffle alt" id="dockMotion" title="Add or change animation">◈ Motion ▾</button>
+      <div id="dockMotionMenu"></div>
+    </div>
     <div class="dgroup" id="dockKeep">
       <span class="dlbl">KEEP</span>
       <button class="dchip" data-lock="colors">Palette</button>
@@ -543,6 +547,30 @@
   #dockExpMenu.open{display:flex}
   #dockExpMenu button{background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:9px 11px;font:inherit;font-size:11.5px;cursor:pointer;text-align:left}
   #dockExpMenu button:hover{border-color:var(--acc)}
+  /* motion menu (mirrors export menu) */
+  #dockMotionMenu{display:none;position:absolute;bottom:calc(100% + 6px);left:0;flex-direction:column;gap:4px;
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px;min-width:150px;max-height:52vh;overflow:auto;box-shadow:0 12px 34px rgba(0,0,0,.55)}
+  #dockMotionMenu.open{display:flex}
+  #dockMotionMenu button{background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:8px 11px;font:inherit;font-size:11.5px;cursor:pointer;text-align:left}
+  #dockMotionMenu button:hover{border-color:var(--acc)}
+  #dockMotionMenu button.on{border-color:var(--acc);color:var(--ink);background:rgba(124,252,0,.13)}
+  #dockMotionMenu .mlbl{color:var(--dim);font-size:9px;letter-spacing:.14em;padding:4px 4px 2px}
+  .dhint #openGuide{background:transparent;border:1px solid var(--line);color:var(--acc);border-radius:6px;
+    padding:2px 8px;font:inherit;font-size:10px;cursor:pointer;margin-left:6px}
+  .dhint #openGuide:hover{border-color:var(--acc)}
+  /* welcome / quick guide */
+  #welcome{position:fixed;inset:0;z-index:70;display:none;align-items:center;justify-content:center;
+    background:rgba(6,6,9,.72);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+  #welcome.open{display:flex}
+  #welcome .wCard{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px;
+    width:min(500px,92vw);box-shadow:0 28px 80px rgba(0,0,0,.65)}
+  #welcome .wHead{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  #welcome .wHead span{font-size:17px;font-weight:700;letter-spacing:.01em}
+  #welcome .wSteps{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:11px}
+  #welcome .wSteps li{color:var(--ink);font-size:12.5px;line-height:1.55}
+  #welcome .wSteps li::marker{color:var(--acc);font-weight:700}
+  #welcome .wSteps b{color:#fff}
+  #welcome .wFoot{color:var(--dim);font-size:11px;margin-top:14px;line-height:1.5}
   @media(max-width:560px){ #simpleDock .dgroup{border-left:0;padding-left:0} #dockRow{gap:7px} }
   /* motion exploration strip */
   #motionStrip{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
@@ -612,6 +640,21 @@
       </div>
     </div>
     <div class="emHint">SVG is editable vector · PNG for quick sharing · WEBM captures the live motion · Contact sheet & zip export your whole saved gallery.</div>
+  </div>
+</div>
+
+<!-- ===================== WELCOME / QUICK GUIDE ===================== -->
+<div id="welcome">
+  <div class="wCard">
+    <div class="wHead"><span>Make a cool sigil in 4 steps</span><button id="wClose" class="emX" title="Close">✕</button></div>
+    <ol class="wSteps">
+      <li><b>Pick a look.</b> Tap a style in the row along the bottom. Ones marked <b>▶</b> already move.</li>
+      <li><b>Shuffle &amp; Keep.</b> Tap <b>⟳ Shuffle</b> for new versions. Found a color or shape you like? Tap <b>Keep</b> (Palette / Finish / Layout) and it stays put while the rest re-rolls. <b>⚲ Shape</b> re-rolls just the shape.</li>
+      <li><b>Add motion.</b> Tap <b>◈ Motion</b> and choose an animation (or <b>🎲 Surprise</b>). Pick a <b>size</b> too — 4:5, Poster, or 9:16 for Instagram.</li>
+      <li><b>Export.</b> Tap <b>⭳ Export</b> to save an image (SVG/PNG), or a <b>🎬 reel video</b> that plays through lots of looks — great for submissions.</li>
+    </ol>
+    <div class="wFoot">Want every dial? <b>⤢ Full editor</b>, top-right. You can reopen this with <b>? Guide</b>.</div>
+    <button class="btn primary" id="wGo" style="width:100%;margin-top:12px">Got it — let's go</button>
   </div>
 </div>
 
@@ -2053,6 +2096,17 @@ function buildSimpleDock(){
   document.getElementById('dExpWebm').onclick=()=>{ menu.classList.remove('open'); exportWEBM(document.getElementById('dockExport')); };
   document.getElementById('dReelMotions').onclick=()=>{ menu.classList.remove('open'); exportReel('motions',document.getElementById('dockExport')); };
   document.getElementById('dReelVariety').onclick=()=>{ menu.classList.remove('open'); exportReel('variety',document.getElementById('dockExport')); };
+  // motion menu
+  buildMotionMenu();
+  const mmenu=document.getElementById('dockMotionMenu');
+  document.getElementById('dockMotion').onclick=e=>{ e.stopPropagation(); markMotionMenu(); mmenu.classList.toggle('open'); menu.classList.remove('open'); };
+  mmenu.addEventListener('click',e=>e.stopPropagation());
+  document.addEventListener('click',()=>mmenu.classList.remove('open'));
+  // guide
+  document.getElementById('openGuide').onclick=showGuide;
+  document.getElementById('wClose').onclick=hideGuide;
+  document.getElementById('wGo').onclick=hideGuide;
+  document.getElementById('welcome').addEventListener('click',e=>{ if(e.target.id==='welcome') hideGuide(); });
   syncDock();
 }
 
@@ -2149,6 +2203,33 @@ function openExport(){
   document.getElementById("exportModal").classList.add("open");
 }
 function closeExport(){ const m=document.getElementById("exportModal"); if(m) m.classList.remove("open"); }
+
+/* ---- Simple-mode Motion menu (add animation without the Full editor) ---- */
+function markMotionMenu(){
+  const set=Array.isArray(state.animSet)?state.animSet:[];
+  document.querySelectorAll('#dockMotionMenu button[data-v]').forEach(b=>{
+    b.classList.toggle('on', b.dataset.v==='none' ? set.length===0 : set.includes(b.dataset.v));
+  });
+}
+function buildMotionMenu(){
+  const menu=document.getElementById('dockMotionMenu'); if(!menu) return;
+  const items=[['none','None (still)'],['boil','Boil'],['liquid','Liquid'],['morph','Morph'],['goo','Goo'],['ripple','Ripple'],['shimmer','Shimmer'],['pulse','Pulse'],['spin','Spin'],['flicker','Flicker']];
+  menu.innerHTML='<div class="mlbl">ANIMATE</div>';
+  items.forEach(([v,label])=>{
+    const b=document.createElement('button'); b.dataset.v=v; b.textContent=label;
+    b.onclick=()=>{ if(v==='none'){state.animSet=[];state.animType='none';} else {state.animSet=[v];state.animType=v;} syncAnimChips(); render(); refreshStrip(); markMotionMenu(); menu.classList.remove('open'); };
+    menu.appendChild(b);
+  });
+  const sur=document.createElement('button'); sur.textContent='🎲 Surprise motion'; sur.style.color='var(--acc)';
+  sur.onclick=()=>{ surpriseMotion(); markMotionMenu(); menu.classList.remove('open'); };
+  menu.appendChild(sur);
+  markMotionMenu();
+}
+
+/* ---- Welcome / quick guide ---- */
+function showGuide(){ const w=document.getElementById('welcome'); if(w) w.classList.add('open'); }
+function hideGuide(){ const w=document.getElementById('welcome'); if(w) w.classList.remove('open'); try{ localStorage.setItem('csf_seen_guide','1'); }catch(e){} }
+function maybeShowGuide(){ let seen='0'; try{ seen=localStorage.getItem('csf_seen_guide')||'0'; }catch(e){} if(seen!=='1') showGuide(); }
 
 function init(){
   seg("modeSeg","mode",v=>{
@@ -2333,7 +2414,7 @@ function init(){
     if(/Light|Layers|FX|Position/.test(h.textContent)) sec.classList.add("collapsed");
   });
   window.addEventListener("keydown",e=>{
-    if(e.key==="Escape"){ closeExport(); return; }
+    if(e.key==="Escape"){ closeExport(); hideGuide(); return; }
     if(e.target.tagName==="INPUT")return;
     if(e.code==="Space"){e.preventDefault();state.seed=randInt(1,999999);render();refreshStrip();}
     else if(e.key==="r"||e.key==="R"){randomizeAll();}
@@ -2344,6 +2425,7 @@ function init(){
   loadPins(); renderPins(); renderCompList();
   buildSimpleDock(); initMode();
   if(!document.body.classList.contains("simple")) renderMotionStrip();   // seed strip only if starting in Full
+  maybeShowGuide();   // first-run quick guide
 }
 init();
 </script>
