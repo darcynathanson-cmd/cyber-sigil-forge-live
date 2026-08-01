@@ -1631,7 +1631,7 @@ function markBlock(animT,opts){
         const bf=(P.bf+(P.bf2-P.bf)*u).toFixed(4);
         const sc=P.pulse ? (1+(P.sc-1)*Math.abs(Math.sin(ph))).toFixed(1) : (P.sc*(0.6+0.7*u)).toFixed(1);
         const seed=7;   // fixed seed — smooth organic boil (no discrete noise jumps)
-        extraDefs+=`<filter id="csfLiq_${uid}" ${reg}><feTurbulence type="${P.ty}" baseFrequency="${bf}" numOctaves="${P.oct}" seed="${seed}" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="${sc}" xChannelSelector="R" yChannelSelector="G"/></filter>`;
+        extraDefs+=`<filter id="csfLiq_${uid}" ${reg}><feTurbulence type="${P.ty}" baseFrequency="${bf}" numOctaves="${opts&&opts.lite?1:P.oct}" seed="${seed}" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="${sc}" xChannelSelector="R" yChannelSelector="G"/></filter>`;
       }
       content=`<g filter="url(#csfLiq_${uid})">${content}</g>`;
     } else if(A==="goo"){
@@ -2333,7 +2333,7 @@ function startMorphPlay(){
     morphLook(state,_morphHome,ph,0);
     state.bgAngle=_morphHome.bgAngle+60*A*Math.sin(ph);
     for(let j=0;j<COMP.length;j++) morphLook(COMP[j],_morphComp[j],ph,(j+1)*0.8);
-    fw.innerHTML=buildSVG(false, (ph/(2*Math.PI))%1, {noGrain:true});   // numeric frame (no SMIL churn) — matches the baked-clip smoothness
+    fw.innerHTML=buildSVG(false, (ph/(2*Math.PI))%1, {noGrain:true,lite:true});   // numeric frame; lite = fewer noise octaves -> smoother live playback
     if(typeof positionGuides==='function') positionGuides();
   };
   _morphRAF=requestAnimationFrame(loop);
@@ -2873,7 +2873,7 @@ init();
   function boot(){
     if(window.__csfSeamless) return; window.__csfSeamless=true;
 
-    /* default: freeze motion while browsing (this is the anti-lag win) */
+    /* static-first: no motion until you hit Animate (keeps the design clean & fast to browse) */
     window.CSF_STATIC = true;
 
     /* ---------- history ---------- */
@@ -2893,7 +2893,7 @@ init();
       HI=i; NAV=true;
       try{
         Object.assign(state, JSON.parse(JSON.stringify(HIST[i])));
-        if(typeof stopMorphPlay==='function' && window.morphPlaying) stopMorphPlay();
+        if(typeof stopMorphPlay==='function' && morphPlaying) stopMorphPlay();
         if(typeof syncAllUI==='function') syncAllUI();
         if(typeof render==='function') render();
       }catch(e){}
@@ -2919,14 +2919,34 @@ init();
     /* ---------- keep ---------- */
     function keep(){ if(typeof pinCurrent==='function'){ pinCurrent(); flash(keepBtn,'★ Kept'); } }
 
-    /* ---------- motion toggle ---------- */
-    function setMotion(on){
-      window.CSF_STATIC=!on;
-      if(!on && typeof stopMorphPlay==='function' && window.morphPlaying) stopMorphPlay();
+    /* ---------- animate: static-first — build a stack, then play smooth goo + morph ---------- */
+    function isPlaying(){ try{ return !!morphPlaying; }catch(e){ return false; } }
+    function playAnim(){
+      try{
+        if(isPlaying() && typeof stopMorphPlay==='function') stopMorphPlay();   // restart to pick up a new motion/home
+        // Simple chips set animType only — mirror it into animSet (what the engine actually plays)
+        if((!state.animSet||!state.animSet.length) && state.animType && state.animType!=='none'){
+          state.animSet=[state.animType];
+        }
+        if(!(state.animSet&&state.animSet.length) && (!state.animType || state.animType==='none')){
+          state.animSet=[CHOSEN]; state.animType=CHOSEN;                         // play the chosen flavor
+          if(typeof syncAnimChips==='function') syncAnimChips();
+        }
+        window.CSF_STATIC=false;
+        if(typeof startMorphPlay==='function') startMorphPlay();
+        else if(typeof render==='function') render();
+      }catch(e){}
+      updBar();
+    }
+    function stopAnim(){
+      try{ if(typeof stopMorphPlay==='function' && isPlaying()) stopMorphPlay(); }catch(e){}
+      window.CSF_STATIC=true;
+      state.animSet=[]; state.animType='none';                                   // clean, undistorted static
+      if(typeof syncAnimChips==='function') syncAnimChips();
       if(typeof render==='function') render();
       updBar();
     }
-    function toggleMotion(){ setMotion(!!window.CSF_STATIC); }
+    function toggleMotion(){ isPlaying()?stopAnim():playAnim(); }
 
     function motionSelected(){
       try{ return (state.animSet&&state.animSet.length)||(state.animType&&state.animType!=='none'); }catch(e){ return false; }
@@ -2952,13 +2972,13 @@ init();
 
     var backBtn=mkBtn('&#9664;','Previous roll  (←)');
     var fwdBtn =mkBtn('&#9654;','Next roll  (→)');
-    var motBtn =mkBtn('⏸ Motion off','Preview motion on/off while browsing  (M) — export always includes motion');
+    var motBtn=null;   // animate now lives on the Step-2 toggle (single control)
     var keepBtn=mkBtn('☆ Keep','Keep this piece to the gallery  (S)');
     var sep=document.createElement('span'); sep.style.cssText='width:1px;height:20px;background:rgba(255,255,255,.14);margin:0 2px';
 
-    backBtn.onclick=back; fwdBtn.onclick=fwd; motBtn.onclick=toggleMotion; keepBtn.onclick=keep;
+    backBtn.onclick=back; fwdBtn.onclick=fwd; keepBtn.onclick=keep;
     bar.appendChild(backBtn); bar.appendChild(fwdBtn); bar.appendChild(sep);
-    bar.appendChild(motBtn); bar.appendChild(keepBtn);
+    bar.appendChild(keepBtn);
     document.body.appendChild(bar);
 
     function updBar(){
@@ -2966,13 +2986,9 @@ init();
       fwdBtn.style.opacity =(HI>=0&&HI<HIST.length-1)?'1':'.35';
       var pos=(HIST.length? (HI+1)+'/'+HIST.length : '–');
       backBtn.title='Previous roll  (←)   •   '+pos;
-      if(window.CSF_STATIC){
-        motBtn.innerHTML='⏸ Motion off'+(motionSelected()?' <span style="color:#7CF6C9">●</span>':'');
-        motBtn.style.color='#cfcfd6';
-      }else{
-        motBtn.innerHTML='▶ Motion on';
-        motBtn.style.color='#7CF6C9';
-      }
+      var sa=document.getElementById('s_anim'), pl=isPlaying();
+      if(sa){ sa.textContent=pl?'⏸ Stop':'▶ Animate'; sa.classList.toggle('on',pl);
+        var so=document.getElementById('s_animOpts'); if(so) so.style.display=pl?'block':'none'; }
     }
 
     /* ---------- keyboard ---------- */
@@ -2990,9 +3006,19 @@ init();
       var el=document.getElementById(id); if(el) el.addEventListener('click', pushSoon);
     });
 
+    /* Simple "Make it move" = the ONE animate control: the toggle plays/stops, chips pick the flavor */
+    var CHOSEN='liquid';
+    function hiChips(){ Array.prototype.forEach.call(document.querySelectorAll('#s_animChips button'), function(x){ x.classList.toggle('on', x.dataset.v===CHOSEN); }); }
+    var sAnim=document.getElementById('s_anim');
+    if(sAnim){ sAnim.onclick=function(){ isPlaying()?stopAnim():playAnim(); }; }
+    Array.prototype.forEach.call(document.querySelectorAll('#s_animChips button'), function(b){
+      b.onclick=function(){ CHOSEN=b.dataset.v; hiChips(); if(isPlaying()){ state.animType=CHOSEN; state.animSet=[CHOSEN]; playAnim(); } };
+    });
+    hiChips();
+
     /* refresh hints to mention the new shortcuts */
-    var h=document.getElementById('hint'); if(h) h.textContent='Space new seed · ← → history · S keep · M motion · E export';
-    document.querySelectorAll('.foothint').forEach(function(f){ f.textContent='Space new seed · ← → step through rolls · S keep to gallery · M preview motion'; });
+    var h=document.getElementById('hint'); if(h) h.textContent='Space new seed · ← → history · S keep · M animate · E export';
+    document.querySelectorAll('.foothint').forEach(function(f){ f.textContent='Build a stack, then ▶ Animate (M) · Space new seed · ← → rolls · S keep'; });
 
     /* seed history with the opening look */
     push();
@@ -3073,7 +3099,7 @@ init();
       try{
         var m=state.alignMode;
         if(m!=='center' && m!=='vaxis') return;
-        if(window.morphPlaying) return;               // don't fight the morph loop
+        if(morphPlaying) return;               // don't fight the morph loop
         var sig=shapeSig();
         if(sig===_lastSig) return;                    // only re-measure when the shape changes
         var off=centerOffsets();
