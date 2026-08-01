@@ -492,7 +492,9 @@
       <div id="dockExpMenu">
         <button id="dExpSvg">SVG (vector)</button>
         <button id="dExpPng">PNG ×2</button>
-        <button id="dExpWebm">WEBM (animation)</button>
+        <button id="dExpWebm">WEBM (this motion)</button>
+        <button id="dReelMotions">🎬 Reel · all motions</button>
+        <button id="dReelVariety">🎬 Reel · variety mix</button>
       </div>
     </div>
   </div>
@@ -593,6 +595,14 @@
         <button class="btn ghost" id="expPng4">PNG ×4</button>
       </div>
       <button class="tgl" id="transToggle2" style="width:100%;margin-top:8px">Transparent background: off</button>
+    </div>
+    <div class="emGroup">
+      <div class="emLbl">Showcase reel · video</div>
+      <div class="emBtns">
+        <button class="btn ghost" id="reelMotions">🎬 All motions</button>
+        <button class="btn ghost" id="reelVariety">🎬 Variety mix</button>
+      </div>
+      <div class="emHint" style="margin-top:6px">One video that cycles looks. <b>All motions</b> = this design through every motion. <b>Variety mix</b> = 8 fresh shapes/finishes/patterns (keeps anything you've Locked). Takes ~30–60s to render.</div>
     </div>
     <div class="emGroup">
       <div class="emLbl">Your gallery</div>
@@ -1525,7 +1535,8 @@ function seg(id,key,after){
   });
 }
 let _stripT=0;
-function refreshStrip(){ if(typeof refreshMotionStrip==="function") refreshMotionStrip(); if(!VARIANTS.length) return; clearTimeout(_stripT); _stripT=setTimeout(renderVariants,180); }
+let REELING=false;   // suppress strip rebuilds while a reel is baking (pure overhead during export)
+function refreshStrip(){ if(REELING) return; if(typeof refreshMotionStrip==="function") refreshMotionStrip(); if(!VARIANTS.length) return; clearTimeout(_stripT); _stripT=setTimeout(renderVariants,180); }
 function slider(id,key,fmt,after){
   const el=document.getElementById(id), out=document.getElementById(id+"v");
   el.oninput=()=>{ state[key]=+el.value; if(out)out.textContent=fmt?fmt(+el.value):el.value; if(after)after(); render(); };
@@ -1836,7 +1847,7 @@ function randomizeAll(){ applyVariant(makeVariant()); shuffleStrip(); }
 let VARIANTS=[];
 let CYCLE_CUR=null;   // motion currently shown while Cycle mode is on
 /* fill the strip with 6 fresh candidates (current finish/layout kept) */
-function shuffleStrip(){ VARIANTS=Array.from({length:6},makeVariant); renderVariants(); }
+function shuffleStrip(){ if(REELING) return; VARIANTS=Array.from({length:6},makeVariant); renderVariants(); }
 function renderVariants(){
   const strip=document.getElementById("varStrip"); if(!strip) return;
   const saved={}; VAR_KEYS.forEach(k=>saved[k]=state[k]);
@@ -1942,6 +1953,56 @@ async function exportWEBM(btn){
   if(btn){btn.textContent=label;btn.disabled=false;}
 }
 
+/* ---- Showcase reel: one video that cycles through many looks ----
+   mode 'motions' = current design, step through each motion.
+   mode 'variety' = step through fresh shuffled designs (shape/finish/pattern/colour),
+                    each with a motion — respects your Keep locks, so a locked palette
+                    stays consistent across the whole reel. */
+const REEL_MOTIONS=["boil","liquid","morph","goo","ripple","shimmer","pulse","spin","flicker"];
+async function exportReel(mode,btn,segsOverride){
+  const label=btn?btn.textContent:"";
+  const setBtn=t=>{ if(btn){btn.textContent=t;btn.disabled=true;} };
+  const snap=looksState(true), snapCyc=state.animCycle, snapSet=(state.animSet||[]).slice(), snapType=state.animType;
+  // segment plan
+  let plan=[];
+  if(mode==='motions'){
+    const list=(state.animSet&&state.animSet.length)?state.animSet.slice():REEL_MOTIONS.slice();
+    plan=list.map(m=>({motion:m}));
+  } else {
+    const K=typeof segsOverride==='number'?segsOverride:6;
+    for(let i=0;i<K;i++) plan.push({shuffle:true});
+  }
+  try{
+    if(!(window.MediaRecorder)) throw new Error("MediaRecorder unavailable");
+    state.animCycle=false; REELING=true;
+    const H=1000,W=Math.round(1000*state.ratio),fps=24,N=36;
+    const cv=document.createElement("canvas");cv.width=W;cv.height=H;const ctx=cv.getContext("2d");
+    const stream=cv.captureStream(fps);
+    const mime=["video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"].find(m=>MediaRecorder.isTypeSupported(m))||"video/webm";
+    const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:12000000});
+    const chunks=[];rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
+    const done=new Promise(r=>rec.onstop=r);
+    const canPause=typeof rec.pause==='function';
+    rec.start();
+    for(let s=0;s<plan.length;s++){
+      setBtn(`Reel ${s+1}/${plan.length}…`);
+      if(canPause && rec.state==='recording') rec.pause();   // don't record the baking freeze
+      if(plan[s].shuffle){ randomizeEverything(); const m=REEL_MOTIONS[randInt(0,REEL_MOTIONS.length-1)]; state.animSet=[m]; state.animType=m; }
+      else { state.animSet=[plan[s].motion]; state.animType=plan[s].motion; }
+      const frames=[]; for(let i=0;i<N;i++) frames.push(await rasterFrame(i/N,W,H));   // bake one full motion loop
+      if(canPause && rec.state==='paused') rec.resume();
+      for(let i=0;i<N;i++){ ctx.clearRect(0,0,W,H); ctx.drawImage(frames[i],0,0,W,H); await new Promise(r=>setTimeout(r,1000/fps)); }
+      frames.forEach(f=>{ try{ f.close&&f.close(); }catch(e){} });   // free memory before next segment
+    }
+    rec.stop(); await done;
+    download(`cyber-sigil-reel-${mode}-${state.seed}.webm`, new Blob(chunks,{type:"video/webm"}));
+  }catch(e){ alert("Reel export failed — this browser may not support video recording. Try Chrome/Edge, or export SVG/PNG. ("+e.message+")"); }
+  REELING=false;
+  Object.assign(state,snap); state.animCycle=snapCyc; state.animSet=snapSet; state.animType=snapType;   // restore
+  syncAllUI(); render(); refreshStrip();
+  if(btn){btn.textContent=label;btn.disabled=false;}
+}
+
 /* init */
 /* ===================== SIMPLE MODE ===================== */
 function buildDockPresets(){
@@ -1990,6 +2051,8 @@ function buildSimpleDock(){
   document.getElementById('dExpSvg').onclick=()=>{ menu.classList.remove('open'); exportSVG(); };
   document.getElementById('dExpPng').onclick=()=>{ menu.classList.remove('open'); exportPNG(2); };
   document.getElementById('dExpWebm').onclick=()=>{ menu.classList.remove('open'); exportWEBM(document.getElementById('dockExport')); };
+  document.getElementById('dReelMotions').onclick=()=>{ menu.classList.remove('open'); exportReel('motions',document.getElementById('dockExport')); };
+  document.getElementById('dReelVariety').onclick=()=>{ menu.classList.remove('open'); exportReel('variety',document.getElementById('dockExport')); };
   syncDock();
 }
 
@@ -2035,6 +2098,7 @@ function animSectionOpen(){
 }
 let _mstripT=0;
 function refreshMotionStrip(force){
+  if(REELING) return;
   if(!animSectionOpen()) return;               // only build while the Animation panel is visible (perf)
   clearTimeout(_mstripT); _mstripT=setTimeout(renderMotionStrip, force?0:400);
 }
@@ -2168,6 +2232,8 @@ function init(){
   document.getElementById("expSvg").onclick=exportSVG;
   document.getElementById("expPng").onclick=()=>exportPNG(2);
   document.getElementById("expPng4").onclick=()=>exportPNG(4);
+  document.getElementById("reelMotions").onclick=function(){exportReel('motions',this);};
+  document.getElementById("reelVariety").onclick=function(){exportReel('variety',this);};
   // ---- image ----
   document.getElementById("imgUpload").onclick=()=>document.getElementById("imgInput").click();
   document.getElementById("imgInput").onchange=e=>{
