@@ -164,6 +164,7 @@
   @keyframes cardFlash{0%{box-shadow:0 0 0 0 rgba(124,252,0,0)}28%{box-shadow:0 0 0 2px var(--acc)}100%{box-shadow:0 0 0 0 rgba(124,252,0,0)}}
   .scard.flash{animation:cardFlash .7s ease-out}
 </style>
+<style id="csf-motion-css">#animChips button[data-v="shimmer"],#animChips button[data-v="pulse"],#animChips button[data-v="spin"],#animChips button[data-v="flicker"],#s_animChips button[data-v="shimmer"],#s_animChips button[data-v="pulse"],#s_animChips button[data-v="spin"],#s_animChips button[data-v="flicker"]{display:none!important}</style>
 </head>
 <body class="mode-simple">
 <div id="app">
@@ -180,7 +181,7 @@
       <div id="modeTabs">
         <button data-mode="simple" class="on">Simple</button>
         <button data-mode="full">Full editor</button>
-        <button data-mode="festival" id="festTabBtn">🏆 Festival</button>
+        <button data-mode="festival" id="festTabBtn">🎬 Reel</button>
       </div>
       <div id="spine">
         <button class="step on" data-step="look"><b>1</b>Pick a look</button>
@@ -558,14 +559,14 @@
           <button class="btn ghost" id="s_seed" style="flex:1">↻ New seed</button>
           <button class="btn ghost" id="s_shuffle" style="flex:1">⇄ Shuffle</button>
         </div>
-        <div class="foothint" style="text-align:left;margin-top:10px">Making a submission clip? Tap <b style="color:#ffb0dd">🏆 Festival</b> up top for the 10-second portrait Morph clip.</div>
+        <div class="foothint" style="text-align:left;margin-top:10px">Want a vertical clip? Tap <b style="color:#ffb0dd">🎬 Reel</b> up top for a 9:16 portrait Morph loop.</div>
       </div>
     </div>
 
     <div id="festivalPanel">
       <div class="scard">
-        <div class="slab" style="color:#ffb0dd"><b>🏆</b> Festival clip</div>
-        <div class="fspec">Sets <b>9:16 portrait</b> &amp; a <b>10-second seamless loop</b>. Pick a look, then export the Morph clip — the exact <b>1080×1920</b> submission the festival needs.</div>
+        <div class="slab" style="color:#ffb0dd"><b>🎬</b> Reel clip</div>
+        <div class="fspec">Sets <b>9:16 portrait</b> &amp; a <b>seamless loop</b>. Pick a look, then export the Morph clip — a vertical video for Reels, Stories or TikTok.</div>
       </div>
       <div class="scard" data-anchor="look">
         <div class="slab"><b>1</b> Pick a look</div>
@@ -574,8 +575,8 @@
       </div>
       <div class="scard" data-anchor="export">
         <div class="slab"><b>2</b> Save clip</div>
-        <button class="bigbtn fest" id="f_export">🎬 Export my 10-second clip</button>
-        <div class="foothint" id="f_status" style="text-align:left;margin-top:9px">Portrait Morph clip, ~10s seamless loop, for the Demo Festival submission.</div>
+        <button class="bigbtn fest" id="f_export">🎬 Export my Reel clip</button>
+        <div class="foothint" id="f_status" style="text-align:left;margin-top:9px">Portrait Morph clip — seamless vertical loop for Reels / Stories / TikTok.</div>
       </div>
     </div>
 
@@ -611,7 +612,7 @@
 
 <!-- ===================== SIMPLE MODE (canvas-first) ===================== -->
 <div id="simpleBar">
-  <button class="sbtn festBtn" id="festBar" title="Set the Demo Festival submission format (9:16, 10s loop)">🏆 Festival</button>
+  <button class="sbtn festBtn" id="festBar" title="Set 9:16 portrait format for a vertical loop">🎬 Reel</button>
   <button class="sbtn" id="simpleGuides" title="Show poster margin & thirds guides (screen only)">▦ Guides</button>
   <button class="sbtn" id="simplePin">＋ Save</button>
   <button class="sbtn" id="toFullBtn" title="Open the full editor with every control">⤢ Full editor</button>
@@ -765,8 +766,8 @@
   <div class="emCard">
     <div class="emHead"><span>Export</span><button id="emClose" class="emX" title="Close">✕</button></div>
     <div class="emGroup">
-      <button class="btn ghost festBtn" id="festModal" style="width:100%">🏆 Set Demo Festival format (9:16 · 10s loop)</button>
-      <div class="emHint" style="margin-top:6px">Sets 9:16 portrait &amp; a 10-second seamless loop. Make your piece, export the 🎬 Morph clip, and it converts to the exact 1080×1920 MP4 the festival needs.</div>
+      <button class="btn ghost festBtn" id="festModal" style="width:100%">🎬 Set Reel format (9:16 portrait loop)</button>
+      <div class="emHint" style="margin-top:6px">Sets 9:16 portrait &amp; a seamless loop. Make your piece, then export the 🎬 Morph clip — a vertical video for Reels, Stories or TikTok.</div>
     </div>
     <div class="emGroup">
       <div class="emLbl">This design</div>
@@ -1629,7 +1630,7 @@ function markBlock(animT,opts){
         const ph=animT*2*Math.PI, u=0.5-0.5*Math.cos(ph);
         const bf=(P.bf+(P.bf2-P.bf)*u).toFixed(4);
         const sc=P.pulse ? (1+(P.sc-1)*Math.abs(Math.sin(ph))).toFixed(1) : (P.sc*(0.6+0.7*u)).toFixed(1);
-        const seed=7+(P.ty==="turbulence"?Math.floor(animT*6):0);
+        const seed=7;   // fixed seed — smooth organic boil (no discrete noise jumps)
         extraDefs+=`<filter id="csfLiq_${uid}" ${reg}><feTurbulence type="${P.ty}" baseFrequency="${bf}" numOctaves="${P.oct}" seed="${seed}" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="${sc}" xChannelSelector="R" yChannelSelector="G"/></filter>`;
       }
       content=`<g filter="url(#csfLiq_${uid})">${content}</g>`;
@@ -1801,10 +1802,10 @@ const PRESETS=[
  {name:"Green tribal", dot:"#0f9c46", patch:{styles:{flame:true},finish:"flat",flatFill:"#0f9c46",flatStroke:"#000000",bg:"#ffffff",glow:false}},
  {name:"Tee weave", dot:"#79f24d", patch:{styles:{knot:true},finish:"flat",flatFill:"#79f24d",flatStroke:"#ff3fb0",bg:"#111014",glow:false}},
  {name:"Toxic spray", dot:"#7CFC00", patch:{styles:{flame:true},finish:"graffiti",sprayFill:"#ff2fa0",sprayGlow:"#7CFC00",bg:"#ffffff",glow:false}},
- {name:"▶ Holo shimmer", dot:"#8affd0", patch:{styles:{flame:true},finish:"holo",bg:"#08080c",animType:"shimmer",animSpeed:1}},
- {name:"▶ Neon flicker", dot:"#ff2fa0", patch:{styles:{flame:true},finish:"neon",neonColor:"#ff2fa0",bg:"#08080c",glow:true,glowColor:"#ff2fa0",animType:"flicker"}},
- {name:"▶ Chrome spin", dot:"#cdd6e2", patch:{styles:{flame:true},arch:"medallion",finish:"chrome",bg:"#0a0a12",animType:"spin",animSpeed:0.6}},
- {name:"▶ Glitch pulse", dot:"#22e0ff", patch:{styles:{flame:true,knot:true},finish:"holo",bg:"#08080c",glitch:8,grain:0.3,animType:"pulse"}},
+ {name:"▶ Holo flow", dot:"#8affd0", patch:{styles:{flame:true},finish:"holo",bg:"#08080c",animType:"liquid",animSpeed:1}},
+ {name:"▶ Neon goo", dot:"#ff2fa0", patch:{styles:{flame:true},finish:"neon",neonColor:"#ff2fa0",bg:"#08080c",glow:true,glowColor:"#ff2fa0",animType:"goo"}},
+ {name:"▶ Chrome morph", dot:"#cdd6e2", patch:{styles:{flame:true},arch:"medallion",finish:"chrome",bg:"#0a0a12",animType:"morph",animSpeed:0.6}},
+ {name:"▶ Glitch ripple", dot:"#22e0ff", patch:{styles:{flame:true,knot:true},finish:"holo",bg:"#08080c",glitch:8,grain:0.3,animType:"ripple"}},
  {name:"▶ Lava boil", dot:"#ff7a1a", patch:{styles:{flame:true},finish:"gel",gelHue:"#ff5a1a",bg:"#0c0503",animType:"boil",animSpeed:1}},
  {name:"▶ Liquid chrome", dot:"#dfe7f0", patch:{styles:{flame:true,knot:true},finish:"chrome",chromeTint:"#c9a24a",bg:"#0a0a10",animType:"liquid",animSpeed:1}},
  {name:"▶ Morphing holo", dot:"#8affd0", patch:{styles:{flame:true},finish:"holo",bg:"#08080c",animType:"morph",animSpeed:1}},
@@ -2210,7 +2211,7 @@ async function exportWEBM(btn){
    mode 'variety' = step through fresh shuffled designs (shape/finish/pattern/colour),
                     each with a motion — respects your Keep locks, so a locked palette
                     stays consistent across the whole reel. */
-const REEL_MOTIONS=["boil","liquid","morph","goo","ripple","shimmer","pulse","spin","flicker"];
+const REEL_MOTIONS=["boil","liquid","morph","goo","ripple"];
 async function exportReel(mode,btn,segsOverride){
   const label=btn?btn.textContent:"";
   const setBtn=t=>{ if(btn){btn.textContent=t;btn.disabled=true;} };
@@ -2326,13 +2327,13 @@ function startMorphPlay(){
   const loop=(now)=>{
     if(!morphPlaying) return;
     _morphRAF=requestAnimationFrame(loop);
-    if(_last>=0 && now-_last<33) return;   // ~30fps cap — plenty smooth, far lighter
+    if(_last>=0 && now-_last<16) return;   // 60fps target — smoother goo/morph (render-bound stacks self-limit)
     _last=now;
     const secs=state.morphSecs||6, ph=((performance.now()-_morphT0)/1000/secs)*2*Math.PI, A=(state.morphAmt!=null?state.morphAmt:1);
     morphLook(state,_morphHome,ph,0);
     state.bgAngle=_morphHome.bgAngle+60*A*Math.sin(ph);
     for(let j=0;j<COMP.length;j++) morphLook(COMP[j],_morphComp[j],ph,(j+1)*0.8);
-    fw.innerHTML=buildSVG(false,null,{noGrain:true});   // skip the expensive grain pass while playing
+    fw.innerHTML=buildSVG(false, (ph/(2*Math.PI))%1, {noGrain:true});   // numeric frame (no SMIL churn) — matches the baked-clip smoothness
     if(typeof positionGuides==='function') positionGuides();
   };
   _morphRAF=requestAnimationFrame(loop);
@@ -2347,13 +2348,13 @@ function stopMorphPlay(){
 function toggleMorphPlay(){ morphPlaying?stopMorphPlay():startMorphPlay(); }
 /* one tap: random stacked composition, animated */
 function surprisePoster(){ randomComp(); startMorphPlay(); }
-/* Demo Festival submission format — 9:16 portrait, ~10s seamless loop */
+/* Reel format — 9:16 portrait, seamless morph loop */
 function festivalFormat(){
   state.ratio=0.5625; segSet('ratioSeg',0.5625); if(typeof syncDock==='function') syncDock();
   state.morphSecs=5; state.morphAmt=1; state.transparent=false;
   ['morphSecs','morphAmt'].forEach(setRange);
   render(); refreshStrip();
-  document.querySelectorAll('.festBtn').forEach(b=>{ if(!b.dataset.lbl)b.dataset.lbl=b.textContent; b.textContent='✓ Festival format set'; setTimeout(()=>{b.textContent=b.dataset.lbl;},1400); });
+  document.querySelectorAll('.festBtn').forEach(b=>{ if(!b.dataset.lbl)b.dataset.lbl=b.textContent; b.textContent='✓ Reel format set'; setTimeout(()=>{b.textContent=b.dataset.lbl;},1400); });
 }
 
 /* init */
@@ -2437,7 +2438,7 @@ function reorderSections(){
 
 /* ---- motion exploration strip (same fast-preview idea as the shape strip) ---- */
 let restartCycleFn=null;
-const MOTION_TILES=["boil","liquid","morph","goo","ripple","shimmer","pulse","spin","flicker"];
+const MOTION_TILES=["boil","liquid","morph","goo","ripple"];
 const MOTION_LABEL={boil:"Boil",liquid:"Liquid",morph:"Morph",goo:"Goo",ripple:"Ripple",shimmer:"Shimmer",pulse:"Pulse",spin:"Spin",flicker:"Flicker"};
 function renderMotionStrip(){
   const strip=document.getElementById("motionStrip"); if(!strip) return;
@@ -2527,7 +2528,7 @@ function markMotionMenu(){
 }
 function buildMotionMenu(){
   const menu=document.getElementById('dockMotionMenu'); if(!menu) return;
-  const items=[['none','None (still)'],['boil','Boil'],['liquid','Liquid'],['morph','Morph'],['goo','Goo'],['ripple','Ripple'],['shimmer','Shimmer'],['pulse','Pulse'],['spin','Spin'],['flicker','Flicker']];
+  const items=[['none','None (still)'],['boil','Boil'],['liquid','Liquid'],['morph','Morph'],['goo','Goo'],['ripple','Ripple']];
   menu.innerHTML='<div class="mlbl">ANIMATE</div>';
   items.forEach(([v,label])=>{
     const b=document.createElement('button'); b.dataset.v=v; b.textContent=label;
@@ -2688,7 +2689,7 @@ function init(){
     render(); refreshStrip();
   });
   // ---- Cycle: auto-rotate through the selected motions (or all of them), one at a time ----
-  const MOTION_ALL=["boil","liquid","morph","goo","ripple","shimmer","pulse","spin","flicker"];
+  const MOTION_ALL=["boil","liquid","morph","goo","ripple"];
   let _cycleT=0;
   function cycleList(){ return (state.animSet&&state.animSet.length)?state.animSet:MOTION_ALL; }
   function cycleTick(){
