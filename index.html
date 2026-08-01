@@ -138,11 +138,7 @@
         <h2>Gallery · your body of work</h2>
         <button class="btn primary" id="pinBtn" style="width:100%">＋ Save to gallery</button>
         <div id="pinRow"></div>
-        <div class="foothint" id="galHint" style="text-align:left;margin-top:5px">Saved pieces persist on this device. Click a tile to restore it · ✕ to remove.</div>
-        <div class="mini" style="margin-top:6px">
-          <button class="btn ghost" id="expSheet">⛶ Contact sheet</button>
-          <button class="btn ghost" id="expAllZip">⬇ All as SVG (zip)</button>
-        </div>
+        <div class="foothint" id="galHint" style="text-align:left;margin-top:5px">Saved pieces persist on this device. Click a tile to restore it · ✕ to remove. Batch export lives in ⭳ Export.</div>
         <div class="mini" style="margin-top:6px">
           <button class="btn ghost" id="copyLook">Copy code</button>
           <button class="btn ghost" id="loadLook">Load code</button>
@@ -439,7 +435,6 @@
           <button class="btn ghost" id="animCycle" style="flex:1">🔄 Cycle animations: off</button>
         </div>
         <div class="row"><label>Secs each</label><input type="range" id="cycleSecs" min="2" max="12" step="0.5" value="5"><span class="val" id="cycleSecsv">5</span></div>
-        <button class="btn ghost" id="expWebm" style="width:100%;margin-top:4px">⬇ Export WEBM video</button>
         <div class="foothint" style="text-align:left">Tap motions to <b>combine</b> them (they stack — e.g. Boil + Shimmer + Spin). <b>Cycle</b> = auto-rotate through the selected motions one at a time (or all of them if none are selected).</div>
       </div>
     </div>
@@ -462,11 +457,9 @@
         <button class="tgl" id="transToggle" style="flex:1">Transparent BG: off</button>
       </div>
       <div class="mini">
-        <button class="btn ghost" id="expSvg">SVG</button>
-        <button class="btn ghost" id="expPng">PNG ×2</button>
-        <button class="btn ghost" id="expPng4">PNG ×4</button>
+        <button class="btn ghost" id="openExport" style="flex:1">⭳ Export…</button>
       </div>
-      <div class="foothint">Click a tile to keep it · Space = new seed · R = shuffle</div>
+      <div class="foothint">Click a tile to keep it · Space = new seed · R = shuffle · E = quick SVG</div>
     </div>
   </aside>
 </div>
@@ -572,7 +565,47 @@
   #guideOverlay .cx{left:50%;top:0;bottom:0;width:1px;background:rgba(124,252,0,.4)}
   #guideOverlay .cy{top:50%;left:0;right:0;height:1px;background:rgba(124,252,0,.4)}
   #simpleBar .sbtn.on{border-color:var(--acc);color:var(--ink);background:rgba(124,252,0,.14)}
+  /* unified export dialog */
+  #exportModal{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;
+    background:rgba(6,6,9,.66);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+  #exportModal.open{display:flex}
+  #exportModal .emCard{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;
+    width:min(420px,92vw);box-shadow:0 24px 70px rgba(0,0,0,.6)}
+  #exportModal .emHead{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  #exportModal .emHead span{font-size:14px;font-weight:700;letter-spacing:.02em;color:var(--ink)}
+  #exportModal .emX{background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:8px;width:28px;height:28px;cursor:pointer;font-size:12px}
+  #exportModal .emX:hover{border-color:var(--acc2)}
+  #exportModal .emGroup{margin-bottom:14px}
+  #exportModal .emLbl{color:var(--dim);font-size:10px;letter-spacing:.16em;text-transform:uppercase;margin-bottom:8px}
+  #exportModal .emBtns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  #exportModal .emBtns .btn{padding:11px 8px}
+  #exportModal .emHint{color:var(--dim);font-size:10.5px;line-height:1.55}
 </style>
+
+<!-- ===================== UNIFIED EXPORT DIALOG ===================== -->
+<div id="exportModal">
+  <div class="emCard">
+    <div class="emHead"><span>Export</span><button id="emClose" class="emX" title="Close">✕</button></div>
+    <div class="emGroup">
+      <div class="emLbl">This design</div>
+      <div class="emBtns">
+        <button class="btn ghost" id="expSvg">SVG · vector</button>
+        <button class="btn ghost" id="expWebm">WEBM · animation</button>
+        <button class="btn ghost" id="expPng">PNG ×2</button>
+        <button class="btn ghost" id="expPng4">PNG ×4</button>
+      </div>
+      <button class="tgl" id="transToggle2" style="width:100%;margin-top:8px">Transparent background: off</button>
+    </div>
+    <div class="emGroup">
+      <div class="emLbl">Your gallery</div>
+      <div class="emBtns">
+        <button class="btn ghost" id="expSheet">⛶ Contact sheet</button>
+        <button class="btn ghost" id="expAllZip">⬇ All as SVG (zip)</button>
+      </div>
+    </div>
+    <div class="emHint">SVG is editable vector · PNG for quick sharing · WEBM captures the live motion · Contact sheet & zip export your whole saved gallery.</div>
+  </div>
+</div>
 
 <script>
 /* ============================================================= *
@@ -2040,6 +2073,21 @@ function setGuides(on){
   if(on){ ensureGuideOverlay(); positionGuides(); }
 }
 
+/* ---- unified export dialog + transparent sync ---- */
+function setTransparent(on){
+  state.transparent=on;
+  [["transToggle","Transparent BG: "],["transToggle2","Transparent background: "]].forEach(([id,lbl])=>{
+    const el=document.getElementById(id); if(el){ el.classList.toggle("on",on); el.textContent=lbl+(on?"on":"off"); }
+  });
+  render();
+}
+function openExport(){
+  const t2=document.getElementById("transToggle2");
+  if(t2){ t2.classList.toggle("on",state.transparent); t2.textContent="Transparent background: "+(state.transparent?"on":"off"); }
+  document.getElementById("exportModal").classList.add("open");
+}
+function closeExport(){ const m=document.getElementById("exportModal"); if(m) m.classList.remove("open"); }
+
 function init(){
   seg("modeSeg","mode",v=>{
     document.getElementById("emblemOpts").style.display = v==="emblem"?"block":"none";
@@ -2101,8 +2149,11 @@ function init(){
   const gt=document.getElementById("glowToggle");
   gt.onclick=()=>{state.glow=!state.glow;gt.classList.toggle("on",state.glow);gt.textContent=state.glow?"On":"Off";render();};
   // export options
-  const tt=document.getElementById("transToggle");
-  tt.onclick=()=>{state.transparent=!state.transparent;tt.classList.toggle("on",state.transparent);tt.textContent="Transparent BG: "+(state.transparent?"on":"off");render();};
+  document.getElementById("transToggle").onclick=()=>setTransparent(!state.transparent);
+  document.getElementById("transToggle2").onclick=()=>setTransparent(!state.transparent);
+  document.getElementById("openExport").onclick=openExport;
+  document.getElementById("emClose").onclick=closeExport;
+  document.getElementById("exportModal").addEventListener("click",e=>{ if(e.target.id==="exportModal") closeExport(); });
   document.getElementById("reseed").onclick=()=>{state.seed=randInt(1,999999);render();refreshStrip();};
   document.getElementById("shuffle").onclick=randomizeAll;
   document.getElementById("randAll").onclick=randomizeEverything;
@@ -2218,6 +2269,7 @@ function init(){
     if(/Light|Layers|FX|Position/.test(h.textContent)) sec.classList.add("collapsed");
   });
   window.addEventListener("keydown",e=>{
+    if(e.key==="Escape"){ closeExport(); return; }
     if(e.target.tagName==="INPUT")return;
     if(e.code==="Space"){e.preventDefault();state.seed=randInt(1,999999);render();refreshStrip();}
     else if(e.key==="r"||e.key==="R"){randomizeAll();}
