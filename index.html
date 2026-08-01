@@ -1055,13 +1055,13 @@ function knotColors(){
   if(F==="gel")    return {out:darken(state.gelHue,0.55), fill:"url(#gelG)", glow:null};
   if(F==="holo")   return {out:"#221033", fill:"url(#holoG)", glow:null};
   if(F==="glass")  return {out:lighten(state.glassTint,0.2), fill:"url(#glassG)", glow:null};
-  if(F==="neon")   return {out:state.neonColor, fill:"url(#neonCore)", glow:state.neonColor};
-  if(F==="graffiti") return {out:state.sprayFill, fill:state.sprayFill, glow:state.sprayGlow};
+  if(F==="neon")   return {out:state.neonColor, fill:"url(#neonCore)", glow:state.neonColor, glowFilter:"neonGlow"};
+  if(F==="graffiti") return {out:state.sprayFill, fill:state.sprayFill, glow:state.sprayGlow, glowFilter:"sprayGlow"};
   return {out:state.flatStroke, fill:state.flatFill, glow:null};
 }
 function ribbon(d,w,c,border){
   let s="";
-  if(c.glow) s+=`<path d="${d}" fill="none" stroke="${c.glow}" stroke-width="${w+border*2+10}" stroke-linecap="round" stroke-linejoin="round" filter="url(#sprayGlow)"/>`;
+  if(c.glow) s+=`<path d="${d}" fill="none" stroke="${c.glow}" stroke-width="${w+border*2+10}" stroke-linecap="round" stroke-linejoin="round" filter="url(#${c.glowFilter||'sprayGlow'})"/>`;
   s+=`<path d="${d}" fill="none" stroke="${c.out}" stroke-width="${w+border*2}" stroke-linecap="round" stroke-linejoin="round"/>`;
   s+=`<path d="${d}" fill="none" stroke="${c.fill}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`;
   return s;
