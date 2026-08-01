@@ -210,6 +210,9 @@
             <button data-v="1.4">Wide</button>
           </div>
         </div>
+        <div class="row" style="margin-top:8px"><label>Guides</label>
+          <button class="tgl" id="guideToggle" style="flex:1">▦ Poster guides: off</button>
+        </div>
         <div id="emblemOpts">
           <div class="row" style="margin-top:6px"><label>Archetype</label>
             <div class="seg" id="archSeg" style="flex:1;flex-wrap:wrap">
@@ -425,6 +428,12 @@
             <button data-v="flicker">Flicker</button>
           </div>
         </div>
+        <div class="row" style="align-items:flex-start;margin-top:6px"><label style="margin-top:5px">Try a motion</label>
+          <div style="flex:1">
+            <div id="motionStrip"></div>
+            <button class="btn ghost" id="surpriseMotion" style="width:100%;margin-top:6px">🎲 Surprise motion</button>
+          </div>
+        </div>
         <div class="row"><label>Speed</label><input type="range" id="animSpeed" min="0.25" max="3" step="0.05" value="1"><span class="val" id="animSpeedv">1.0</span></div>
         <div class="row" style="margin-top:2px"><label>Cycle</label>
           <button class="btn ghost" id="animCycle" style="flex:1">🔄 Cycle animations: off</button>
@@ -464,6 +473,7 @@
 
 <!-- ===================== SIMPLE MODE (canvas-first) ===================== -->
 <div id="simpleBar">
+  <button class="sbtn" id="simpleGuides" title="Show poster margin & thirds guides (screen only)">▦ Guides</button>
   <button class="sbtn" id="simplePin">＋ Save</button>
   <button class="sbtn" id="toFullBtn" title="Open the full editor with every control">⤢ Full editor</button>
 </div>
@@ -541,6 +551,27 @@
   #dockExpMenu button{background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:9px 11px;font:inherit;font-size:11.5px;cursor:pointer;text-align:left}
   #dockExpMenu button:hover{border-color:var(--acc)}
   @media(max-width:560px){ #simpleDock .dgroup{border-left:0;padding-left:0} #dockRow{gap:7px} }
+  /* motion exploration strip */
+  #motionStrip{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+  #motionStrip .mt{aspect-ratio:1;border:1px solid var(--line);border-radius:6px;overflow:hidden;cursor:pointer;
+    background:#0f0f14;position:relative;transition:transform .1s}
+  #motionStrip .mt:hover{transform:translateY(-2px);border-color:var(--acc)}
+  #motionStrip .mt.sel{border-color:var(--acc2);box-shadow:0 0 0 1px var(--acc2)}
+  #motionStrip .mt svg{width:100%;height:100%;display:block}
+  #motionStrip .mt .lb{position:absolute;left:0;right:0;bottom:0;font-size:8.5px;text-align:center;
+    background:rgba(8,8,12,.72);color:var(--ink);padding:1px 0;letter-spacing:.04em;pointer-events:none}
+  /* poster guides overlay (screen only, never exported) */
+  #guideOverlay{position:absolute;pointer-events:none;display:none;z-index:6}
+  body.guides #guideOverlay{display:block}
+  #guideOverlay .mg{position:absolute;inset:7%;border:1px dashed rgba(255,90,180,.75)}
+  #guideOverlay .ln{position:absolute;background:rgba(120,200,255,.34)}
+  #guideOverlay .vt1{left:33.33%;top:0;bottom:0;width:1px}
+  #guideOverlay .vt2{left:66.66%;top:0;bottom:0;width:1px}
+  #guideOverlay .ht1{top:33.33%;left:0;right:0;height:1px}
+  #guideOverlay .ht2{top:66.66%;left:0;right:0;height:1px}
+  #guideOverlay .cx{left:50%;top:0;bottom:0;width:1px;background:rgba(124,252,0,.4)}
+  #guideOverlay .cy{top:50%;left:0;right:0;height:1px;background:rgba(124,252,0,.4)}
+  #simpleBar .sbtn.on{border-color:var(--acc);color:var(--ink);background:rgba(124,252,0,.14)}
 </style>
 
 <script>
@@ -1340,7 +1371,7 @@ function markBlock(animT,opts){
              ripple:{ty:"fractalNoise",bf:0.012, bf2:0.012, sc:34, oct:2, dur:3.0, pulse:1}};
   // active motions: cycle (one at a time) for live preview, else the combined set
   let acts=[];
-  if(!opts.tile){
+  if(!opts.tile || opts.mstrip){
     if(state.animCycle && CYCLE_CUR && animT==null){ acts=[CYCLE_CUR]; }
     else { acts = (state.animSet&&state.animSet.length) ? state.animSet.slice()
                 : (state.animType&&state.animType!=="none" ? [state.animType] : []); }
@@ -1448,6 +1479,7 @@ function render(){
   _renderRAF=requestAnimationFrame(()=>{ _renderRAF=0;
     document.getElementById("frameWrap").innerHTML=buildSVG(false);
     document.getElementById("seedTag").textContent="seed "+state.seed;
+    if(typeof positionGuides==="function") positionGuides();
   });
 }
 
@@ -1462,7 +1494,7 @@ function seg(id,key,after){
   });
 }
 let _stripT=0;
-function refreshStrip(){ if(!VARIANTS.length) return; clearTimeout(_stripT); _stripT=setTimeout(renderVariants,180); }
+function refreshStrip(){ if(typeof refreshMotionStrip==="function") refreshMotionStrip(); if(!VARIANTS.length) return; clearTimeout(_stripT); _stripT=setTimeout(renderVariants,180); }
 function slider(id,key,fmt,after){
   const el=document.getElementById(id), out=document.getElementById(id+"v");
   el.oninput=()=>{ state[key]=+el.value; if(out)out.textContent=fmt?fmt(+el.value):el.value; if(after)after(); render(); };
@@ -1898,6 +1930,8 @@ function setMode(m,persist){
   document.body.classList.toggle('simple', m==='simple');
   if(persist!==false){ try{ localStorage.setItem('csf_mode',m); }catch(e){} }
   syncDock();
+  if(m!=='simple' && typeof refreshMotionStrip==='function') refreshMotionStrip(true);   // build strip when entering Full
+  if(typeof positionGuides==='function') positionGuides();                               // canvas size changes with mode
 }
 function initMode(){
   let m='simple'; try{ m=localStorage.getItem('csf_mode')||'simple'; }catch(e){}
@@ -1926,6 +1960,84 @@ function buildSimpleDock(){
   document.getElementById('dExpPng').onclick=()=>{ menu.classList.remove('open'); exportPNG(2); };
   document.getElementById('dExpWebm').onclick=()=>{ menu.classList.remove('open'); exportWEBM(document.getElementById('dockExport')); };
   syncDock();
+}
+
+/* ---- Full-editor section order: match the creative loop ---- */
+function reorderSections(){
+  const order=["Presets","Layout","Form","Finish","Palette","Background","Light","Text","Animation","FX","Layers","Position","Compose","Image","Series","Gallery"];
+  const controls=document.getElementById("controls"); if(!controls) return;
+  const secs=[...controls.querySelectorAll(".sec")];
+  order.forEach(key=>{
+    const s=secs.find(sec=>{ const h=sec.querySelector("h2"); return h && h.textContent.includes(key); });
+    if(s) controls.appendChild(s);   // appendChild moves the node into place
+  });
+}
+
+/* ---- motion exploration strip (same fast-preview idea as the shape strip) ---- */
+let restartCycleFn=null;
+const MOTION_TILES=["boil","liquid","morph","goo","ripple","shimmer","pulse","spin","flicker"];
+const MOTION_LABEL={boil:"Boil",liquid:"Liquid",morph:"Morph",goo:"Goo",ripple:"Ripple",shimmer:"Shimmer",pulse:"Pulse",spin:"Spin",flicker:"Flicker"};
+function renderMotionStrip(){
+  const strip=document.getElementById("motionStrip"); if(!strip) return;
+  const savedSet=state.animSet, savedType=state.animType, savedCyc=state.animCycle;
+  state.animCycle=false;                                    // tiles show their own motion, not the cycle
+  const cur=Array.isArray(savedSet)?savedSet:[];
+  strip.innerHTML="";
+  MOTION_TILES.forEach(m=>{
+    state.animSet=[m]; state.animType=m;
+    const tile=document.createElement("div"); tile.className="mt";
+    tile.innerHTML=buildSVG(false,null,{tile:true,mstrip:true})+`<span class="lb">${MOTION_LABEL[m]}</span>`;
+    if(cur.length===1 && cur[0]===m) tile.classList.add("sel");
+    tile.onclick=()=>{
+      state.animSet=[m]; state.animType=m; syncAnimChips();
+      if(state.animCycle && restartCycleFn) restartCycleFn();
+      render(); refreshStrip();
+      strip.querySelectorAll(".mt").forEach(x=>x.classList.remove("sel")); tile.classList.add("sel");
+    };
+    strip.appendChild(tile);
+  });
+  state.animSet=savedSet; state.animType=savedType; state.animCycle=savedCyc;   // restore live state
+}
+function animSectionOpen(){
+  const sec=[...document.querySelectorAll('#controls .sec')].find(s=>{const h=s.querySelector('h2');return h&&/Animation/.test(h.textContent);});
+  return sec && !sec.classList.contains('collapsed');
+}
+let _mstripT=0;
+function refreshMotionStrip(force){
+  if(!animSectionOpen()) return;               // only build while the Animation panel is visible (perf)
+  clearTimeout(_mstripT); _mstripT=setTimeout(renderMotionStrip, force?0:400);
+}
+function surpriseMotion(){
+  const pool=MOTION_TILES.slice(), set=[], n=randInt(1,3);
+  for(let i=0;i<n && pool.length;i++) set.push(pool.splice(randInt(0,pool.length-1),1)[0]);
+  state.animSet=set; state.animType=set[0]||"none"; syncAnimChips();
+  if(state.animCycle && restartCycleFn) restartCycleFn();
+  render(); refreshStrip(); renderMotionStrip();
+}
+
+/* ---- poster margin / safe-area guides (screen only, never exported) ---- */
+function ensureGuideOverlay(){
+  let o=document.getElementById("guideOverlay");
+  if(!o){
+    o=document.createElement("div"); o.id="guideOverlay";
+    o.innerHTML='<div class="mg"></div><div class="ln vt1"></div><div class="ln vt2"></div><div class="ln ht1"></div><div class="ln ht2"></div><div class="ln cx"></div><div class="ln cy"></div>';
+    document.getElementById("stage").appendChild(o);
+  }
+  return o;
+}
+function positionGuides(){
+  if(!document.body.classList.contains("guides")) return;
+  const o=ensureGuideOverlay(), fw=document.getElementById("frameWrap"); if(!fw) return;
+  const el=fw.querySelector("svg")||fw;
+  const st=document.getElementById("stage").getBoundingClientRect(), r=el.getBoundingClientRect();
+  o.style.left=(r.left-st.left)+"px"; o.style.top=(r.top-st.top)+"px";
+  o.style.width=r.width+"px"; o.style.height=r.height+"px";
+}
+function setGuides(on){
+  document.body.classList.toggle("guides",on);
+  const gt=document.getElementById("guideToggle"); if(gt){ gt.classList.toggle("on",on); gt.textContent="▦ Poster guides: "+(on?"on":"off"); }
+  const sg=document.getElementById("simpleGuides"); if(sg) sg.classList.toggle("on",on);
+  if(on){ ensureGuideOverlay(); positionGuides(); }
 }
 
 function init(){
@@ -2076,6 +2188,11 @@ function init(){
     if(on) cycleTick(); else render();
   }
   document.getElementById("animCycle").onclick=()=>setCycle(!state.animCycle);
+  restartCycleFn=restartCycle;   // expose the in-closure cycle restart to the motion-strip handlers
+  document.getElementById("surpriseMotion").onclick=surpriseMotion;
+  document.getElementById("guideToggle").onclick=()=>setGuides(!document.body.classList.contains("guides"));
+  document.getElementById("simpleGuides").onclick=()=>setGuides(!document.body.classList.contains("guides"));
+  window.addEventListener("resize",()=>{ if(typeof positionGuides==="function") positionGuides(); });
   slider("cycleSecs","cycleSecs",v=>(+v).toFixed(1).replace(/\.0$/,''));
   document.getElementById("expWebm").onclick=function(){exportWEBM(this);};
   ["stickerColor","echoColor","twoToneColor","patColor"].forEach(id=>{
@@ -2090,14 +2207,15 @@ function init(){
     render(); refreshStrip();
   });
   renderPresets();
-  // collapsible sections (advanced ones folded by default)
+  reorderSections();   // put the creative-loop sections up top, management at the bottom
+  // collapsible sections (advanced ones folded by default; Text & Animation stay open — they're the outputs)
   document.querySelectorAll("#controls .sec").forEach(sec=>{
     const h=sec.querySelector("h2"); if(!h) return;
     const body=document.createElement("div"); body.className="secbody";
     while(h.nextSibling) body.appendChild(h.nextSibling);
     sec.appendChild(body);
-    h.onclick=()=>sec.classList.toggle("collapsed");
-    if(/Light|Text|Layers|FX|Animation|Position/.test(h.textContent)) sec.classList.add("collapsed");
+    h.onclick=()=>{ sec.classList.toggle("collapsed"); if(!sec.classList.contains("collapsed") && /Animation/.test(h.textContent)) refreshMotionStrip(true); };
+    if(/Light|Layers|FX|Position/.test(h.textContent)) sec.classList.add("collapsed");
   });
   window.addEventListener("keydown",e=>{
     if(e.target.tagName==="INPUT")return;
@@ -2109,6 +2227,7 @@ function init(){
   renderFinishCtl(); updGoldRow(); bgPresets(); syncSliders(); render(); shuffleStrip();
   loadPins(); renderPins(); renderCompList();
   buildSimpleDock(); initMode();
+  if(!document.body.classList.contains("simple")) renderMotionStrip();   // seed strip only if starting in Full
 }
 init();
 </script>
