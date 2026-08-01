@@ -160,6 +160,9 @@
         <h2>Compose · stack layers</h2>
         <button class="btn primary" id="addComp" style="width:100%">⊞ Add current as a layer</button>
         <button class="btn pk" id="randComp" style="width:100%;margin-top:6px">🎲 Random comp (auto-stack)</button>
+        <div class="row" style="margin-top:8px"><label>Morph amount</label><input type="range" id="morphAmt" min="0.3" max="2" step="0.05" value="1"><span class="val" id="morphAmtv">1</span></div>
+        <div class="row"><label>Loop secs</label><input type="range" id="morphSecs" min="3" max="10" step="0.5" value="6"><span class="val" id="morphSecsv">6</span></div>
+        <div class="foothint" style="text-align:left;margin-top:2px">Controls the 🎬 Morph clip export (Export menu): how much it contorts &amp; the loop length.</div>
         <div id="compRow"></div>
         <div class="foothint" id="compHint" style="text-align:left;margin-top:5px">No layers yet. Build one element (say a frame), Add it, then design the next (a symbol) — they stack into one asset. Each layer keeps its own finish, motion &amp; position; your current design sits on top. Click a layer to edit it.</div>
         <button class="btn ghost" id="clearComp" style="width:100%;margin-top:6px;display:none">Clear stack</button>
@@ -697,7 +700,7 @@ const state = {
   twoTone:false, twoToneColor:"#000000", twoToneInset:12,
   pattern:"none", patColor:"#000000", patScale:20,
   grain:0, warp:0, glitch:0,
-  animType:"none", animSet:[], animSpeed:1, animCycle:false, cycleSecs:5,
+  animType:"none", animSet:[], animSpeed:1, animCycle:false, cycleSecs:5, morphAmt:1, morphSecs:6,
   offX:0, offY:0, markScale:1, rotate:0,
   locks:{finish:false,colors:false,layout:false,fx:false},
   palette:["#ff2fa0","#7CFC00","#0b0b12"], bgPatOpacity:0.5, seriesN:8,
@@ -1716,7 +1719,7 @@ function syncAllUI(){
   const tw=document.getElementById('twoToneToggle'); tw.classList.toggle('on',state.twoTone); tw.textContent=state.twoTone?'On':'Off';
   document.querySelectorAll('#patternChips button').forEach(b=>b.classList.toggle('on',b.dataset.v===state.pattern));
   document.getElementById('patRow').style.display=state.pattern==='none'?'none':'flex';
-  ['grain','warp','glitch','animSpeed','cycleSecs'].forEach(setRange);
+  ['grain','warp','glitch','animSpeed','cycleSecs','morphAmt','morphSecs'].forEach(setRange);
   syncAnimChips();
   const cyb=document.getElementById('animCycle'); if(cyb){ cyb.classList.toggle('on',!!state.animCycle); cyb.textContent="🔄 Cycle animations: "+(state.animCycle?"on":"off"); }
   const fsel=document.getElementById('fontSel'); if(fsel) fsel.value=state.textFont;
@@ -1811,26 +1814,31 @@ function clearComp(){ COMP=[]; renderCompList(); render(); }
 function randomComp(){
   const savedLocks={...state.locks};
   state.locks={finish:false,colors:false,layout:false,fx:false};
-  const K=randInt(3,5);
+  const K=randInt(4,5);
   const pal=pick(PAL_PRESETS).slice();
   const archPool=["crest","medallion","column","spire","fan","burst"].sort(()=>Math.random()-0.5);  // distinct per layer
+  const finPool=["chrome","neon","gel","holo","chrome"].sort(()=>Math.random()-0.5);                // mixed materials
   const looks=[]; REELING=true;
   for(let i=0;i<K;i++){
     randomizeEverything();
-    if(state.mode==='emblem') state.arch=archPool[i%archPool.length];   // ensure varied silhouettes
-    state.palette=pal.slice(); applyPalette();          // harmonise every layer to one palette
+    if(state.mode==='emblem') state.arch=archPool[i%archPool.length];   // varied silhouettes
+    state.finish=finPool[i%finPool.length];                            // guaranteed mix of finishes
+    state.palette=pal.slice(); applyPalette();                          // one palette across layers
+    if(state.finish==='neon'){ state.glow=true; state.glowColor=pal[i%2]; }
     const depth = K>1 ? i/(K-1) : 0;
-    state.markScale=+(1.35-0.7*depth+randF(-0.08,0.08)).toFixed(2);   // back big → front small
+    state.markScale=+(1.5-0.85*depth+randF(-0.08,0.08)).toFixed(2);     // back big → front small
     state.offX=randInt(-14,14); state.offY=randInt(-24,24); state.rotate=randInt(-12,12);
     state.grain=0; state.glitch=0;
-    if(!(state.animSet&&state.animSet.length)){ const m=pick(['liquid','morph','ripple','goo']); state.animSet=[m]; state.animType=m; }  // seamless-looping motions only
+    if(!(state.animSet&&state.animSet.length)){ const m=pick(['liquid','morph','ripple','goo']); state.animSet=[m]; state.animType=m; }  // seamless-looping motions
     looks.push(looksState(true));
   }
   REELING=false;
   COMP=looks.slice(0,K-1);                 // bottom → below-top
-  Object.assign(state, looks[K-1]);        // top layer = current design (draws the background)
-  state.markScale=+(0.7+randF(-0.05,0.05)).toFixed(2);
-  state.bgMode=Math.random()<0.6?'gradient':'solid'; state.transparent=false;
+  Object.assign(state, looks[K-1]);        // top layer = current design (draws ground: bg + pattern + grain)
+  state.markScale=+(0.66+randF(-0.05,0.05)).toFixed(2);
+  state.bgMode='gradient'; state.transparent=false;
+  state.bgPat=pick(['dots','grid','lines','cross']); state.bgPatColor=pal[1]; state.bgPatScale=randInt(22,40); state.bgPatOpacity=+randF(0.16,0.28).toFixed(2);  // pattern
+  state.grain=+randF(0.18,0.34).toFixed(2);   // texture
   state.locks=savedLocks;
   syncAllUI(); renderCompList(); render(); refreshStrip();
 }
@@ -2082,13 +2090,14 @@ async function exportReel(mode,btn,segsOverride){
    a seamless liquid loop. Whatever's on screen — emblem, bg, pattern, echo, size — flexes. */
 const _mclamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 function morphLook(obj,base,ph,off){   // oscillate one look's shape dials around its home values
-  obj.spikiness=_mclamp(base.spikiness+0.18*Math.sin(ph+off),0.2,0.95);
-  obj.curl=base.curl+45*Math.sin(2*ph+off);
-  obj.hook=_mclamp(base.hook+110*Math.sin(ph+off+1.3),40,320);
-  obj.holes=_mclamp(base.holes+0.24*Math.sin(3*ph+off),0.15,0.85);
-  obj.edge=_mclamp((base.edge!=null?base.edge:0.55)+0.08*Math.sin(2*ph+off+0.7),0.3,0.75);
-  obj.size=(base.size!=null?base.size:1)+0.04*Math.sin(ph+off);
-  obj.rotate=(base.rotate||0)+6*Math.sin(ph+off);
+  const A=(state.morphAmt!=null?state.morphAmt:1);   // controllable morph amount
+  obj.spikiness=_mclamp(base.spikiness+0.18*A*Math.sin(ph+off),0.2,0.95);
+  obj.curl=base.curl+45*A*Math.sin(2*ph+off);
+  obj.hook=_mclamp(base.hook+110*A*Math.sin(ph+off+1.3),40,320);
+  obj.holes=_mclamp(base.holes+0.24*A*Math.sin(3*ph+off),0.15,0.85);
+  obj.edge=_mclamp((base.edge!=null?base.edge:0.55)+0.08*A*Math.sin(2*ph+off+0.7),0.3,0.75);
+  obj.size=(base.size!=null?base.size:1)+0.04*A*Math.sin(ph+off);
+  obj.rotate=(base.rotate||0)+6*A*Math.sin(ph+off);
 }
 async function exportMorph(btn){
   const label=btn?btn.textContent:"";
@@ -2099,7 +2108,7 @@ async function exportMorph(btn){
     if(!window.MediaRecorder) throw new Error("MediaRecorder unavailable");
     REELING=true; state.animCycle=false;
     if(!(state.animSet&&state.animSet.length)){ state.animSet=['liquid']; state.animType='liquid'; }   // ensure flowing surface
-    const H=1000,W=Math.round(1000*state.ratio),fps=24,total=96;
+    const H=1000,W=Math.round(1000*state.ratio),fps=24,total=Math.max(48,Math.min(160,Math.round((state.morphSecs||6)*fps)));   // loop length control
     const c={spikiness:state.spikiness,curl:state.curl,hook:state.hook,holes:state.holes,edge:state.edge,size:state.size,rotate:state.rotate,bgAngle:state.bgAngle,bgPatScale:state.bgPatScale,echoOffset:state.echoOffset};
     setBtn("Baking…");
     const frames=[];
@@ -2392,6 +2401,8 @@ function init(){
   document.getElementById("expAllZip").onclick=exportGalleryZip;
   document.getElementById("addComp").onclick=addCompLayer;
   document.getElementById("randComp").onclick=randomComp;
+  slider("morphAmt","morphAmt",v=>(+v).toFixed(2).replace(/0$/,''));
+  slider("morphSecs","morphSecs",v=>(+v).toFixed(1).replace(/\.0$/,''));
   document.getElementById("clearComp").onclick=clearComp;
   slider("seriesN","seriesN",v=>String(Math.round(v)));
   document.getElementById("genSeries").onclick=genSeries;
