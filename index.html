@@ -93,6 +93,17 @@
      border-radius:4px;background:rgba(10,10,14,.72);color:var(--acc);font-size:12px;border:0;cursor:pointer;opacity:0;transition:opacity .1s;padding:0}
   #seriesRow .vt:hover .add{opacity:1}
   #seriesRow .vt .add:hover{background:var(--acc);color:#0b0b0e}
+  #compRow{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:8px}
+  #compRow .vt{aspect-ratio:1;border:1px solid var(--line);border-radius:6px;overflow:hidden;cursor:pointer;background:#0f0f14;position:relative;transition:transform .1s}
+  #compRow .vt:hover{transform:translateY(-2px);border-color:var(--acc)}
+  #compRow .vt svg{width:100%;height:100%;display:block}
+  #compRow .vt .del,#compRow .vt .mv{position:absolute;width:15px;height:15px;line-height:14px;text-align:center;border-radius:4px;
+     background:rgba(10,10,14,.75);color:#fff;font-size:10px;border:0;cursor:pointer;opacity:0;transition:opacity .1s;padding:0}
+  #compRow .vt .del{top:1px;right:1px}
+  #compRow .vt .mv.up{top:1px;left:1px}
+  #compRow .vt .mv.dn{top:1px;left:18px}
+  #compRow .vt:hover .del,#compRow .vt:hover .mv{opacity:1}
+  #compRow .vt .del:hover{background:var(--acc2)} #compRow .vt .mv:hover{background:var(--acc);color:#0b0b0e}
   #shuffle{width:100%;display:flex;align-items:center;justify-content:center;gap:7px}
 </style>
 <style id="embedded-fonts">
@@ -147,6 +158,13 @@
         </div>
         <div class="presetrow" id="palPresets" style="margin-top:8px"></div>
         <div class="foothint" style="text-align:left">Set 2–3 colors → Apply, or let Randomize pull from them.</div>
+      </div>
+      <div class="sec">
+        <h2>Compose · stack layers</h2>
+        <button class="btn primary" id="addComp" style="width:100%">⊞ Add current as a layer</button>
+        <div id="compRow"></div>
+        <div class="foothint" id="compHint" style="text-align:left;margin-top:5px">No layers yet. Build one element (say a frame), Add it, then design the next (a symbol) — they stack into one asset. Each layer keeps its own finish, motion &amp; position; your current design sits on top. Click a layer to edit it.</div>
+        <button class="btn ghost" id="clearComp" style="width:100%;margin-top:6px;display:none">Clear stack</button>
       </div>
       <div class="sec">
         <h2>Series · cohesive family</h2>
@@ -1177,8 +1195,8 @@ function textLayerMarkup(W,H){
   return out;
 }
 
-/* ---------- assemble the whole SVG (layers selected styles) ---------- */
-function buildSVG(forExport,animT,opts){
+/* ---------- build ONE mark's renderable pieces (no <svg> wrapper) ---------- */
+function markBlock(animT,opts){
   opts=opts||{};
   const H=1000, W=Math.round(1000*state.ratio);
   const F=state.finish, outlineMode=state.treat==="outline";
@@ -1294,12 +1312,49 @@ function buildSVG(forExport,animT,opts){
     const dx=(state.offX/100*W).toFixed(1), dy=(state.offY/100*H).toFixed(1), s=state.markScale, r=state.rotate;
     content=`<g transform="translate(${dx},${dy}) rotate(${r} ${cx} ${cy}) translate(${cx},${cy}) scale(${s}) translate(${-cx},${-cy})">${content}</g>`;
   }
+  return { defs, extraDefs, animStyle, bgRect, content, W, H };
+}
+
+let COMP=[];   // composition stack — each entry is a full look snapshot rendered as its own layer
+/* namespace every id / url(#..) / keyframe in a fragment so stacked layers with different
+   finishes & motion don't collide (SVG ids are document-global) */
+function prefixIds(str,p){
+  const ids=new Set(); let m;
+  const reId=/id="([^"]+)"/g; while(m=reId.exec(str)) ids.add(m[1]);
+  const kfn=new Set(); const reK=/@keyframes\s+([\w-]+)/g; while(m=reK.exec(str)) kfn.add(m[1]);
+  let out=str;
+  ids.forEach(id=>{ const e=id.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    out=out.replace(new RegExp('id="'+e+'"','g'),'id="'+p+id+'"')
+           .replace(new RegExp('url\\(#'+e+'\\)','g'),'url(#'+p+id+')')
+           .replace(new RegExp('(xlink:)?href="#'+e+'"','g'),s=>s.replace('#'+id,'#'+p+id))
+           .replace(new RegExp('#'+e+'\\{','g'),'#'+p+id+'{'); });
+  kfn.forEach(n=>{ const e=n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    out=out.replace(new RegExp('@keyframes\\s+'+e,'g'),'@keyframes '+p+n)
+           .replace(new RegExp('animation:'+e,'g'),'animation:'+p+n); });
+  return out;
+}
+/* ---------- assemble the whole SVG: stacked composition layers + current mark on top ---------- */
+function buildSVG(forExport,animT,opts){
+  opts=opts||{};
+  const base=markBlock(animT,opts);
+  const W=base.W, H=base.H;
+  let stack="";
+  if(!opts.tile && COMP.length){
+    const saved=looksState(true);
+    COMP.forEach((layer,i)=>{
+      Object.assign(state,layer); state.ratio=saved.ratio;   // share the base canvas
+      const b=markBlock(animT,opts);
+      stack += prefixIds(`<defs>${b.defs}${b.extraDefs}</defs>${b.animStyle}${b.content}`, 'L'+i+'_');
+    });
+    Object.assign(state,saved);
+  }
   const grain=(!opts.tile&&state.grain>0) ? `<rect x="0" y="0" width="${W}" height="${H}" filter="url(#grainF)" opacity="${(state.grain*0.6).toFixed(2)}" style="mix-blend-mode:overlay"/>` : "";
   return `<svg xmlns="${SVGNS}" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" ${forExport?'':'preserveAspectRatio="xMidYMid meet"'}>
-  <defs>${defs}${extraDefs}</defs>
-  ${animStyle}
-  ${bgRect}
-  ${content}
+  <defs>${base.defs}${base.extraDefs}</defs>
+  ${base.animStyle}
+  ${base.bgRect}
+  ${stack}
+  ${base.content}
   ${grain}
 </svg>`;
 }
@@ -1545,6 +1600,32 @@ function saveSeriesAll(){
   Object.assign(state,cur); syncAllUI(); render();
   const b=document.getElementById('saveSeries'); if(b){ const t=b.textContent; b.textContent="✓ Saved to gallery"; setTimeout(()=>b.textContent=t,1000); }
 }
+/* ---- Compose: stack independent layers into one multi-layered asset ---- */
+function addCompLayer(){ COMP.push(looksState(true)); renderCompList(); render(); }
+function removeComp(i){ COMP.splice(i,1); renderCompList(); render(); }
+function clearComp(){ COMP=[]; renderCompList(); render(); }
+function moveComp(i,d){ const j=i+d; if(j<0||j>=COMP.length) return; const t=COMP[i]; COMP[i]=COMP[j]; COMP[j]=t; renderCompList(); render(); }
+function renderCompList(){
+  const row=document.getElementById('compRow'); if(!row) return;
+  const cur=looksState(true); row.innerHTML='';
+  COMP.forEach((layer,i)=>{
+    Object.assign(state,layer); state.ratio=cur.ratio;
+    const t=document.createElement('div'); t.className='vt'; t.innerHTML=buildSVG(false,null,{tile:true});
+    t.title='click to edit this layer (removes it from the stack)';
+    t.onclick=()=>{ Object.assign(state,COMP[i]); COMP.splice(i,1); syncAllUI(); renderCompList(); render(); refreshStrip(); };
+    const mk=(cls,txt,ttl,fn)=>{ const b=document.createElement('button'); b.className=cls; b.textContent=txt; b.title=ttl; b.onclick=(e)=>{e.stopPropagation();fn();}; return b; };
+    t.appendChild(mk('del','✕','remove layer',()=>removeComp(i)));
+    t.appendChild(mk('mv up','↑','move up (behind→front)',()=>moveComp(i,-1)));
+    t.appendChild(mk('mv dn','↓','move down',()=>moveComp(i,1)));
+    row.appendChild(t);
+  });
+  Object.assign(state,cur);
+  const h=document.getElementById('compHint');
+  if(h) h.textContent = COMP.length
+    ? (COMP.length+' layer'+(COMP.length>1?'s':'')+' stacked (current design on top). Click a layer to edit · ✕ remove · ↑↓ reorder.')
+    : 'No layers yet. Build one element, Add it, then design the next — they stack into one asset. Current design sits on top.';
+  const cc=document.getElementById('clearComp'); if(cc) cc.style.display=COMP.length?'block':'none';
+}
 /* full chaos roll — everything except the user's text */
 function pick(a){return a[Math.floor(Math.random()*a.length)];}
 function randColor(){return '#'+Math.floor(Math.random()*0x1000000).toString(16).padStart(6,'0');}
@@ -1785,6 +1866,8 @@ function init(){
   document.getElementById("pinBtn").onclick=pinCurrent;
   document.getElementById("expSheet").onclick=exportContactSheet;
   document.getElementById("expAllZip").onclick=exportGalleryZip;
+  document.getElementById("addComp").onclick=addCompLayer;
+  document.getElementById("clearComp").onclick=clearComp;
   slider("seriesN","seriesN",v=>String(Math.round(v)));
   document.getElementById("genSeries").onclick=genSeries;
   document.getElementById("saveSeries").onclick=saveSeriesAll;
@@ -1893,7 +1976,7 @@ function init(){
     else if(e.key==="e"||e.key==="E"){exportSVG();}
   });
   renderFinishCtl(); updGoldRow(); bgPresets(); syncSliders(); render(); shuffleStrip();
-  loadPins(); renderPins();
+  loadPins(); renderPins(); renderCompList();
 }
 init();
 </script>
