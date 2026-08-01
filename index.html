@@ -849,7 +849,7 @@ const state = {
   twoTone:false, twoToneColor:"#000000", twoToneInset:12,
   pattern:"none", patColor:"#000000", patScale:20,
   grain:0, warp:0, glitch:0,
-  animType:"none", animSet:[], animSpeed:1, animCycle:false, cycleSecs:5, morphAmt:1, morphSecs:6, alignMode:"free",
+  animType:"none", animSet:[], animSpeed:1, animCycle:false, cycleSecs:5, morphAmt:1, morphSecs:6, alignMode:"center",
   offX:0, offY:0, markScale:1, rotate:0,
   locks:{finish:false,colors:false,layout:false,fx:false},
   palette:["#ff2fa0","#7CFC00","#0b0b12"], bgPatOpacity:0.5, seriesN:8,
@@ -1686,19 +1686,28 @@ function prefixIds(str,p){
   return out;
 }
 /* ---------- assemble the whole SVG: stacked composition layers + current mark on top ---------- */
+let _compCache={key:null,stack:""};
 function buildSVG(forExport,animT,opts){
   opts=opts||{};
   const base=markBlock(animT,opts);
   const W=base.W, H=base.H;
   let stack="";
   if(!opts.tile && COMP.length){
-    const saved=looksState(true);
-    COMP.forEach((layer,i)=>{
-      Object.assign(state,layer); state.ratio=saved.ratio;   // share the base canvas
-      const b=markBlock(animT,opts);
-      stack += prefixIds(`<defs>${b.defs}${b.extraDefs}</defs>${b.animStyle}${b.content}`, 'L'+i+'_');
-    });
-    Object.assign(state,saved);
+    // The stacked layers are static snapshots; only rebuild them when the stack
+    // (or canvas / animation frame) actually changes. Toggling the top design
+    // then costs one mark, not the whole stack.
+    const _ck = JSON.stringify(COMP)+"|"+(animT==null?"s":animT)+"|"+state.ratio;
+    if(_compCache.key===_ck){ stack=_compCache.stack; }
+    else {
+      const saved=looksState(true);
+      COMP.forEach((layer,i)=>{
+        Object.assign(state,layer); state.ratio=saved.ratio;   // share the base canvas
+        const b=markBlock(animT,opts);
+        stack += prefixIds(`<defs>${b.defs}${b.extraDefs}</defs>${b.animStyle}${b.content}`, 'L'+i+'_');
+      });
+      Object.assign(state,saved);
+      _compCache={key:_ck, stack:stack};
+    }
   }
   const grain=(!opts.tile&&!opts.noGrain&&state.grain>0) ? `<rect x="0" y="0" width="${W}" height="${H}" filter="url(#grainF)" opacity="${(state.grain*0.6).toFixed(2)}" style="mix-blend-mode:overlay"/>` : "";
   return `<svg xmlns="${SVGNS}" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" ${forExport?'':'preserveAspectRatio="xMidYMid meet"'}>
