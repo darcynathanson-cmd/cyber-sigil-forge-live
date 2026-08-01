@@ -159,6 +159,7 @@
       <div class="sec">
         <h2>Compose · stack layers</h2>
         <button class="btn primary" id="addComp" style="width:100%">⊞ Add current as a layer</button>
+        <button class="btn pk" id="randComp" style="width:100%;margin-top:6px">🎲 Random comp (auto-stack)</button>
         <div id="compRow"></div>
         <div class="foothint" id="compHint" style="text-align:left;margin-top:5px">No layers yet. Build one element (say a frame), Add it, then design the next (a symbol) — they stack into one asset. Each layer keeps its own finish, motion &amp; position; your current design sits on top. Click a layer to edit it.</div>
         <button class="btn ghost" id="clearComp" style="width:100%;margin-top:6px;display:none">Clear stack</button>
@@ -1806,6 +1807,33 @@ function saveSeriesAll(){
 function addCompLayer(){ COMP.push(looksState(true)); renderCompList(); render(); }
 function removeComp(i){ COMP.splice(i,1); renderCompList(); render(); }
 function clearComp(){ COMP=[]; renderCompList(); render(); }
+/* one-click multilayered composition — stacks 3–5 varied motifs on a shared palette */
+function randomComp(){
+  const savedLocks={...state.locks};
+  state.locks={finish:false,colors:false,layout:false,fx:false};
+  const K=randInt(3,5);
+  const pal=pick(PAL_PRESETS).slice();
+  const archPool=["crest","medallion","column","spire","fan","burst"].sort(()=>Math.random()-0.5);  // distinct per layer
+  const looks=[]; REELING=true;
+  for(let i=0;i<K;i++){
+    randomizeEverything();
+    if(state.mode==='emblem') state.arch=archPool[i%archPool.length];   // ensure varied silhouettes
+    state.palette=pal.slice(); applyPalette();          // harmonise every layer to one palette
+    const depth = K>1 ? i/(K-1) : 0;
+    state.markScale=+(1.35-0.7*depth+randF(-0.08,0.08)).toFixed(2);   // back big → front small
+    state.offX=randInt(-14,14); state.offY=randInt(-24,24); state.rotate=randInt(-12,12);
+    state.grain=0; state.glitch=0;
+    if(!(state.animSet&&state.animSet.length)){ const m=pick(['liquid','morph','ripple','goo']); state.animSet=[m]; state.animType=m; }  // seamless-looping motions only
+    looks.push(looksState(true));
+  }
+  REELING=false;
+  COMP=looks.slice(0,K-1);                 // bottom → below-top
+  Object.assign(state, looks[K-1]);        // top layer = current design (draws the background)
+  state.markScale=+(0.7+randF(-0.05,0.05)).toFixed(2);
+  state.bgMode=Math.random()<0.6?'gradient':'solid'; state.transparent=false;
+  state.locks=savedLocks;
+  syncAllUI(); renderCompList(); render(); refreshStrip();
+}
 function moveComp(i,d){ const j=i+d; if(j<0||j>=COMP.length) return; const t=COMP[i]; COMP[i]=COMP[j]; COMP[j]=t; renderCompList(); render(); }
 function renderCompList(){
   const row=document.getElementById('compRow'); if(!row) return;
@@ -2052,31 +2080,36 @@ async function exportReel(mode,btn,segsOverride){
    Oscillates the current design's dials around their present values (so the look you
    built/shuffled is the home base) and drifts the background/pattern/echo too, baking
    a seamless liquid loop. Whatever's on screen — emblem, bg, pattern, echo, size — flexes. */
+const _mclamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+function morphLook(obj,base,ph,off){   // oscillate one look's shape dials around its home values
+  obj.spikiness=_mclamp(base.spikiness+0.18*Math.sin(ph+off),0.2,0.95);
+  obj.curl=base.curl+45*Math.sin(2*ph+off);
+  obj.hook=_mclamp(base.hook+110*Math.sin(ph+off+1.3),40,320);
+  obj.holes=_mclamp(base.holes+0.24*Math.sin(3*ph+off),0.15,0.85);
+  obj.edge=_mclamp((base.edge!=null?base.edge:0.55)+0.08*Math.sin(2*ph+off+0.7),0.3,0.75);
+  obj.size=(base.size!=null?base.size:1)+0.04*Math.sin(ph+off);
+  obj.rotate=(base.rotate||0)+6*Math.sin(ph+off);
+}
 async function exportMorph(btn){
   const label=btn?btn.textContent:"";
   const setBtn=t=>{ if(btn){btn.textContent=t;btn.disabled=true;} };
   const snap=looksState(true), snapSet=(state.animSet||[]).slice(), snapType=state.animType, snapCyc=state.animCycle;
+  const compBase=COMP.map(c=>JSON.parse(JSON.stringify(c)));   // frozen home for each stacked layer
   try{
     if(!window.MediaRecorder) throw new Error("MediaRecorder unavailable");
     REELING=true; state.animCycle=false;
     if(!(state.animSet&&state.animSet.length)){ state.animSet=['liquid']; state.animType='liquid'; }   // ensure flowing surface
     const H=1000,W=Math.round(1000*state.ratio),fps=24,total=96;
-    const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
     const c={spikiness:state.spikiness,curl:state.curl,hook:state.hook,holes:state.holes,edge:state.edge,size:state.size,rotate:state.rotate,bgAngle:state.bgAngle,bgPatScale:state.bgPatScale,echoOffset:state.echoOffset};
     setBtn("Baking…");
     const frames=[];
     for(let i=0;i<total;i++){
       const ph=2*Math.PI*i/total;   // integer harmonics → seamless loop, always in motion
-      state.spikiness=clamp(c.spikiness+0.18*Math.sin(ph),0.2,0.95);
-      state.curl=c.curl+45*Math.sin(2*ph);
-      state.hook=clamp(c.hook+110*Math.sin(ph+1.3),40,320);
-      state.holes=clamp(c.holes+0.24*Math.sin(3*ph),0.15,0.85);
-      state.edge=clamp(c.edge+0.08*Math.sin(2*ph+0.7),0.3,0.75);
-      state.size=c.size+0.04*Math.sin(ph);
-      state.rotate=c.rotate+6*Math.sin(ph);
+      morphLook(state,c,ph,0);      // top/base layer
       state.bgAngle=c.bgAngle+60*Math.sin(ph);
-      state.bgPatScale=clamp(c.bgPatScale+8*Math.sin(2*ph),8,60);
-      state.echoOffset=clamp(c.echoOffset+8*Math.sin(ph+1),0,40);
+      state.bgPatScale=_mclamp(c.bgPatScale+8*Math.sin(2*ph),8,60);
+      state.echoOffset=_mclamp(c.echoOffset+8*Math.sin(ph+1),0,40);
+      for(let j=0;j<COMP.length;j++) morphLook(COMP[j],compBase[j],ph,(j+1)*0.8);   // every stacked layer, offset phase
       frames.push(await rasterFrame(i/total,W,H));
       if(i%12===0) setBtn(`Baking ${Math.round(i/total*100)}%…`);
     }
@@ -2093,8 +2126,9 @@ async function exportMorph(btn){
     download(`cyber-sigil-morph-${state.seed}.webm`, new Blob(chunks,{type:"video/webm"}));
   }catch(e){ alert("Morph export failed — this browser may not support video recording. Try Chrome/Edge. ("+e.message+")"); }
   REELING=false;
+  COMP=compBase;   // restore stacked layers to their pre-morph state
   Object.assign(state,snap); state.animSet=snapSet; state.animType=snapType; state.animCycle=snapCyc;
-  syncAllUI(); render(); refreshStrip();
+  syncAllUI(); renderCompList(); render(); refreshStrip();
   if(btn){btn.textContent=label;btn.disabled=false;}
 }
 
@@ -2357,6 +2391,7 @@ function init(){
   document.getElementById("expSheet").onclick=exportContactSheet;
   document.getElementById("expAllZip").onclick=exportGalleryZip;
   document.getElementById("addComp").onclick=addCompLayer;
+  document.getElementById("randComp").onclick=randomComp;
   document.getElementById("clearComp").onclick=clearComp;
   slider("seriesN","seriesN",v=>String(Math.round(v)));
   document.getElementById("genSeries").onclick=genSeries;
