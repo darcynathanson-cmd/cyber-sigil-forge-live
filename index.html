@@ -124,6 +124,7 @@
 
   <aside id="panel">
     <div id="brand">
+      <button id="toSimpleBtn" title="Switch to the simple, canvas-first view">▤ Simple view</button>
       <h1>Cyber <b>Sigil</b> Forge</h1>
       <p>Procedural cybersigilism frames &amp; emblems — tweak, reroll, export vector.</p>
     </div>
@@ -460,6 +461,87 @@
     </div>
   </aside>
 </div>
+
+<!-- ===================== SIMPLE MODE (canvas-first) ===================== -->
+<div id="simpleBar">
+  <button class="sbtn" id="simplePin">＋ Save</button>
+  <button class="sbtn" id="toFullBtn" title="Open the full editor with every control">⤢ Full editor</button>
+</div>
+<div id="simpleDock">
+  <div class="dhint">Pick a look · <b>Shuffle</b> for variations · <b>Keep</b> what you like · Export when it's cool</div>
+  <div id="dockPresets"></div>
+  <div id="dockRow">
+    <button class="dshuffle" id="dockShuffle" title="Roll a new variation (respects what you Keep)">⟳ Shuffle</button>
+    <button class="dchip" id="dockSeed" title="New random shape only">⚲ Shape</button>
+    <div class="dgroup" id="dockKeep">
+      <span class="dlbl">KEEP</span>
+      <button class="dchip" data-lock="colors">Palette</button>
+      <button class="dchip" data-lock="finish">Finish</button>
+      <button class="dchip" data-lock="layout">Layout</button>
+    </div>
+    <div class="dgroup" id="dockRatio">
+      <span class="dlbl">SIZE</span>
+      <button class="dchip" data-r="1">Square</button>
+      <button class="dchip" data-r="0.8">Portrait</button>
+      <button class="dchip" data-r="0.667">Poster</button>
+      <button class="dchip" data-r="1.4">Wide</button>
+    </div>
+    <div class="dexp">
+      <button class="dshuffle alt" id="dockExport">⭳ Export ▾</button>
+      <div id="dockExpMenu">
+        <button id="dExpSvg">SVG (vector)</button>
+        <button id="dExpPng">PNG ×2</button>
+        <button id="dExpWebm">WEBM (animation)</button>
+      </div>
+    </div>
+  </div>
+</div>
+<style>
+  #brand{position:relative}
+  #toSimpleBtn{position:absolute;top:12px;right:14px;background:var(--panel2);border:1px solid var(--line);
+    color:var(--ink);border-radius:8px;padding:6px 9px;font:inherit;font-size:10.5px;cursor:pointer}
+  #toSimpleBtn:hover{border-color:var(--acc)}
+  #simpleBar,#simpleDock{display:none}
+  body.simple #panel{display:none}
+  body.simple #hint,body.simple #seedTag{display:none}
+  body.simple #stage{padding-bottom:172px;box-sizing:border-box}
+  body.simple #frameWrap svg{width:min(72vh,62vw)}
+  body.simple #simpleBar{display:flex}
+  body.simple #simpleDock{display:flex}
+  #simpleBar{position:fixed;top:12px;right:16px;z-index:40;gap:8px}
+  #simpleBar .sbtn{background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:9px;
+    padding:8px 13px;font:inherit;font-size:12px;cursor:pointer;font-weight:600}
+  #simpleBar .sbtn:hover{border-color:var(--acc)}
+  #simpleDock{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:40;flex-direction:column;gap:9px;
+    background:rgba(18,18,22,.93);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);
+    border:1px solid var(--line);border-radius:16px;padding:11px 13px;box-shadow:0 14px 44px rgba(0,0,0,.55);
+    width:min(940px,95vw)}
+  #simpleDock .dhint{color:var(--dim);font-size:10.5px;text-align:center}
+  #simpleDock .dhint b{color:var(--ink);font-weight:600}
+  #dockPresets{display:flex;gap:6px;overflow-x:auto;padding-bottom:3px}
+  #dockPresets::-webkit-scrollbar{height:7px}#dockPresets::-webkit-scrollbar-thumb{background:#2c2c36;border-radius:6px}
+  #dockPresets .dpreset{flex:0 0 auto;background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:8px;
+    padding:7px 11px;font:inherit;font-size:11.5px;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap}
+  #dockPresets .dpreset:hover{border-color:var(--acc)}
+  #dockPresets .dot{width:10px;height:10px;border-radius:3px;flex:0 0 auto}
+  #dockRow{display:flex;align-items:center;gap:9px;flex-wrap:wrap;justify-content:center}
+  .dshuffle{background:var(--acc);color:#0b0b0e;border:0;border-radius:10px;padding:11px 20px;font:inherit;font-weight:700;font-size:14px;cursor:pointer}
+  .dshuffle:hover{filter:brightness(1.07)}
+  .dshuffle.alt{background:var(--panel2);color:var(--ink);border:1px solid var(--line);font-weight:600;font-size:12.5px;padding:10px 15px}
+  .dshuffle.alt:hover{border-color:var(--acc)}
+  #simpleDock .dgroup{display:flex;align-items:center;gap:5px;padding-left:9px;border-left:1px solid var(--line)}
+  #simpleDock .dlbl{color:var(--dim);font-size:9.5px;letter-spacing:.14em}
+  #simpleDock .dchip{background:var(--panel2);border:1px solid var(--line);color:var(--dim);border-radius:8px;padding:8px 11px;font:inherit;font-size:11.5px;cursor:pointer}
+  #simpleDock .dchip:hover{border-color:var(--acc)}
+  #simpleDock .dchip.on{border-color:var(--acc);color:var(--ink);background:rgba(124,252,0,.13)}
+  .dexp{position:relative}
+  #dockExpMenu{display:none;position:absolute;bottom:calc(100% + 6px);right:0;flex-direction:column;gap:4px;
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px;min-width:150px;box-shadow:0 12px 34px rgba(0,0,0,.55)}
+  #dockExpMenu.open{display:flex}
+  #dockExpMenu button{background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:9px 11px;font:inherit;font-size:11.5px;cursor:pointer;text-align:left}
+  #dockExpMenu button:hover{border-color:var(--acc)}
+  @media(max-width:560px){ #simpleDock .dgroup{border-left:0;padding-left:0} #dockRow{gap:7px} }
+</style>
 
 <script>
 /* ============================================================= *
@@ -1527,6 +1609,7 @@ function syncAllUI(){
   ['imgScale','imgX','imgY','imgRot','imgOpacity','seriesN'].forEach(setRange);
   const ic=document.getElementById('imgCtl'); if(ic) ic.style.display=state.imgData?'block':'none';
   const iu=document.getElementById('imgUpload'); if(iu) iu.textContent=state.imgData?'Replace PNG…':'Upload PNG…';
+  if(typeof syncDock==='function') syncDock();
 }
 function applyPreset(p){
   if(p.patch.styles) state.styles={flame:false,band:false,knot:false,...p.patch.styles};
@@ -1797,6 +1880,54 @@ async function exportWEBM(btn){
 }
 
 /* init */
+/* ===================== SIMPLE MODE ===================== */
+function buildDockPresets(){
+  const row=document.getElementById('dockPresets'); if(!row) return;
+  PRESETS.forEach(p=>{
+    const b=document.createElement('button'); b.className='dpreset';
+    b.innerHTML=`<span class="dot" style="background:${p.dot}"></span>${p.name}`;
+    b.onclick=()=>applyPreset(p);
+    row.appendChild(b);
+  });
+}
+function syncDock(){
+  document.querySelectorAll('#dockKeep .dchip').forEach(b=>b.classList.toggle('on',!!state.locks[b.dataset.lock]));
+  document.querySelectorAll('#dockRatio .dchip').forEach(b=>b.classList.toggle('on', +b.dataset.r===+state.ratio));
+}
+function setMode(m,persist){
+  document.body.classList.toggle('simple', m==='simple');
+  if(persist!==false){ try{ localStorage.setItem('csf_mode',m); }catch(e){} }
+  syncDock();
+}
+function initMode(){
+  let m='simple'; try{ m=localStorage.getItem('csf_mode')||'simple'; }catch(e){}
+  setMode(m,false);
+}
+function buildSimpleDock(){
+  buildDockPresets();
+  document.getElementById('dockShuffle').onclick=randomizeEverything;   // big Shuffle — respects Keep locks
+  document.getElementById('dockSeed').onclick=()=>{ state.seed=randInt(1,999999); render(); refreshStrip(); };
+  document.querySelectorAll('#dockKeep .dchip').forEach(b=>b.onclick=()=>{
+    const k=b.dataset.lock; state.locks[k]=!state.locks[k];
+    b.classList.toggle('on',state.locks[k]);
+    document.querySelectorAll('#foot [data-lock="'+k+'"]').forEach(x=>x.classList.toggle('on',state.locks[k]));
+  });
+  document.querySelectorAll('#dockRatio .dchip').forEach(b=>b.onclick=()=>{
+    state.ratio=+b.dataset.r; segSet('ratioSeg',state.ratio); syncDock(); render(); refreshStrip();
+  });
+  document.getElementById('simplePin').onclick=pinCurrent;
+  document.getElementById('toFullBtn').onclick=()=>setMode('advanced');
+  const ts=document.getElementById('toSimpleBtn'); if(ts) ts.onclick=()=>setMode('simple');
+  const menu=document.getElementById('dockExpMenu');
+  document.getElementById('dockExport').onclick=e=>{ e.stopPropagation(); menu.classList.toggle('open'); };
+  menu.addEventListener('click',e=>e.stopPropagation());
+  document.addEventListener('click',()=>menu.classList.remove('open'));
+  document.getElementById('dExpSvg').onclick=()=>{ menu.classList.remove('open'); exportSVG(); };
+  document.getElementById('dExpPng').onclick=()=>{ menu.classList.remove('open'); exportPNG(2); };
+  document.getElementById('dExpWebm').onclick=()=>{ menu.classList.remove('open'); exportWEBM(document.getElementById('dockExport')); };
+  syncDock();
+}
+
 function init(){
   seg("modeSeg","mode",v=>{
     document.getElementById("emblemOpts").style.display = v==="emblem"?"block":"none";
@@ -1827,7 +1958,7 @@ function init(){
   document.getElementById("applyPal").onclick=applyPalette;
   renderPalPresets();
   // locks
-  document.querySelectorAll('#foot [data-lock]').forEach(b=>{b.onclick=()=>{const k=b.dataset.lock;state.locks[k]=!state.locks[k];b.classList.toggle('on',state.locks[k]);};});
+  document.querySelectorAll('#foot [data-lock]').forEach(b=>{b.onclick=()=>{const k=b.dataset.lock;state.locks[k]=!state.locks[k];b.classList.toggle('on',state.locks[k]);if(typeof syncDock==='function')syncDock();};});
   // bg pattern opacity
   slider("bgPatOpacity","bgPatOpacity",v=>v.toFixed(2).replace(/^0/,''));
   slider("complexity","complexity"); slider("spikiness","spikiness",v=>v.toFixed(2).replace(/^0/,''));
@@ -1977,6 +2108,7 @@ function init(){
   });
   renderFinishCtl(); updGoldRow(); bgPresets(); syncSliders(); render(); shuffleStrip();
   loadPins(); renderPins(); renderCompList();
+  buildSimpleDock(); initMode();
 }
 init();
 </script>
