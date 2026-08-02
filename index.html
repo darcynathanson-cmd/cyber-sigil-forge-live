@@ -2333,12 +2333,8 @@ async function exportMorph(btn){
     setBtn("Baking…");
     const frames=[];
     for(let i=0;i<total;i++){
-      const ph=2*Math.PI*i/total;   // integer harmonics → seamless loop, always in motion
-      morphLook(state,c,ph,0);      // top/base layer
-      state.bgAngle=c.bgAngle+60*Math.sin(ph);
-      state.bgPatScale=_mclamp(c.bgPatScale+8*Math.sin(2*ph),8,60);
-      state.echoOffset=_mclamp(c.echoOffset+8*Math.sin(ph+1),0,40);
-      for(let j=0;j<COMP.length;j++) morphLook(COMP[j],compBase[j],ph,(j+1)*0.8);   // every stacked layer, offset phase
+      // Surface motion ONLY (ripple / goop in place) — no shape sway. animT sweeps a full
+      // seamless loop; every layer holds its geometry and just flexes its surface filter.
       frames.push(await rasterFrame(i/total,W,H,RS));
       if(i%12===0) setBtn(`Baking ${Math.round(i/total*100)}%…`);
     }
@@ -2415,10 +2411,10 @@ function startMorphPlay(){
     if(_last>=0 && now-_last<16) return;   // 60fps target — smoother goo/morph
     _last=now;
     if(!fg || !fg.isConnected) fg=buildStage();   // self-heal if the stage was replaced
-    const secs=state.morphSecs||6, ph=((performance.now()-_morphT0)/1000/secs)*2*Math.PI, A=(state.morphAmt!=null?state.morphAmt:1);
-    morphLook(state,_morphHome,ph,0);
-    state.bgAngle=_morphHome.bgAngle+60*A*Math.sin(ph);
-    fg.innerHTML=buildMorphFG((ph/(2*Math.PI))%1);   // only the hero mark rebuilds; SMIL background keeps flowing untouched
+    const secs=state.morphSecs||6, ph=((performance.now()-_morphT0)/1000/secs)*2*Math.PI;
+    // Surface motion ONLY (ripple / goop in place) — no shape sway: the mark holds its
+    // geometry and just flexes its surface via the animT-driven filter.
+    fg.innerHTML=buildMorphFG((ph/(2*Math.PI))%1);
     if(typeof positionGuides==='function') positionGuides();
   };
   _morphRAF=requestAnimationFrame(loop);
