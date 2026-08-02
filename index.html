@@ -515,11 +515,11 @@
           </div>
         </div>
         <div class="row"><label>Speed</label><input type="range" id="animSpeed" min="0.25" max="3" step="0.05" value="1"><span class="val" id="animSpeedv">1.0</span></div>
-        <div class="row" style="margin-top:2px"><label>Cycle</label>
+        <div class="row" style="margin-top:2px;display:none"><label>Cycle</label>
           <button class="btn ghost" id="animCycle" style="flex:1">🔄 Cycle animations: off</button>
         </div>
-        <div class="row"><label>Secs each</label><input type="range" id="cycleSecs" min="2" max="12" step="0.5" value="5"><span class="val" id="cycleSecsv">5</span></div>
-        <div class="foothint" style="text-align:left">Tap motions to <b>combine</b> them (they stack — e.g. Boil + Shimmer + Spin). <b>Cycle</b> = auto-rotate through the selected motions one at a time (or all of them if none are selected).</div>
+        <div class="row" style="display:none"><label>Secs each</label><input type="range" id="cycleSecs" min="2" max="12" step="0.5" value="5"><span class="val" id="cycleSecsv">5</span></div>
+        <div class="foothint" style="text-align:left">Pick one motion, then <b>▶ Animate</b> up top to preview it — same as Simple mode.</div>
       </div>
     </div>
 
@@ -2214,7 +2214,7 @@ function pickVideoMime(){
    auto-reduced so the stored frames stay within a memory budget on long loops */
 function reelOutSize(W,H,frameCount){
   let RS=1920/H;                                   // ideal upscale (H is always 1000 → 1.92)
-  const MAXPX=200e6;                               // ~200M px across all held frames (~0.8GB @4B) budget
+  const MAXPX=310e6;                               // px budget across all held frames (~1.2GB @4B): full 1080×1920 up to ~6.2s loops, graceful downscale beyond
   const px=(W*RS)*(H*RS)*Math.max(1,frameCount||1);
   if(px>MAXPX) RS*=Math.sqrt(MAXPX/px);
   RS=Math.max(1,RS);                               // never downscale below native
@@ -2770,12 +2770,10 @@ function init(){
   // Motion chips = MULTI-SELECT (combine). "None" clears the set.
   document.getElementById("animChips").querySelectorAll("button").forEach(b=>b.onclick=()=>{
     const v=b.dataset.v;
-    if(!Array.isArray(state.animSet)) state.animSet=[];
-    if(v==="none"){ state.animSet=[]; }
-    else { const i=state.animSet.indexOf(v); if(i>=0) state.animSet.splice(i,1); else state.animSet.push(v); }
-    state.animType=state.animSet[0]||"none";        // keep single field synced for presets/export
+    if(v==="none"){ state.animSet=[]; state.animType="none"; }   // single-select flavor, matches Simple (Combine/Cycle retired)
+    else { state.animSet=[v]; state.animType=v; }
+    state.animCycle=false;
     syncAnimChips();
-    if(state.animCycle) restartCycle();
     render(); refreshStrip();
   });
   // ---- Cycle: auto-rotate through the selected motions (or all of them), one at a time ----
