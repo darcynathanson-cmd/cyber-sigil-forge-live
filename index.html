@@ -2011,6 +2011,7 @@ function clearComp(){ COMP=[]; renderCompList(); render(); }
 /* one-click multilayered composition — stacks 3–5 varied motifs on a shared palette */
 function randomComp(){
   if(typeof stopMorphPlay==='function') stopMorphPlay();
+  if(typeof weavePlaying!=='undefined' && weavePlaying && typeof stopWeave==='function') stopWeave();   // don't leave a weave loop running over a new stack
   const savedLocks={...state.locks};
   state.locks={finish:false,colors:false,layout:false,fx:false};
   const K=randInt(4,5);
@@ -2419,6 +2420,7 @@ function buildMorphFG(animT){
 }
 function startMorphPlay(){
   if(morphPlaying) return;
+  if(typeof weavePlaying!=='undefined' && weavePlaying && typeof stopWeave==='function') stopWeave();   // motion modes are mutually exclusive
   morphPlaying=true;
   _morphHome={spikiness:state.spikiness,curl:state.curl,hook:state.hook,holes:state.holes,edge:state.edge,size:state.size,rotate:state.rotate,bgAngle:state.bgAngle,bgPatScale:state.bgPatScale,echoOffset:state.echoOffset};
   _morphComp=COMP.map(c=>JSON.parse(JSON.stringify(c)));
@@ -3008,7 +3010,7 @@ init();
   function clearLookHi(){ document.querySelectorAll("#s_looks button,#f_looks button").forEach(function(x){x.style.borderColor="";}); }
 
   function syncShell(){
-    var on = !!(state.animType && state.animType!=="none");
+    var on = !window.CSF_STATIC && !!(state.animType && state.animType!=="none");   // "On" only when motion is actually showing
     var sa=document.getElementById("s_anim");
     if(sa){ sa.classList.toggle("on",on); sa.textContent=on?"On":"Off"; document.getElementById("s_animOpts").style.display=on?"block":"none"; }
     document.querySelectorAll("#s_animChips button").forEach(function(x){ x.classList.toggle("on", x.dataset.v===(on?state.animType:"boil")); });
@@ -3081,8 +3083,21 @@ init();
   /* simple wiring */
   document.getElementById("s_more").onclick=function(){ goMode("full"); };
   document.querySelectorAll("#s_ratio button").forEach(function(b){ b.onclick=function(){ state.ratio=+b.dataset.v; safe(syncAllUI); render(); safeStrip(); syncShell(); }; });
-  document.getElementById("s_anim").onclick=function(){ state.animType=(state.animType&&state.animType!=="none")?"none":"boil"; safe(syncAllUI); render(); syncShell(); };
-  document.querySelectorAll("#s_animChips button").forEach(function(b){ b.onclick=function(){ state.animType=b.dataset.v; safe(syncAllUI); render(); syncShell(); }; });
+  document.getElementById("s_anim").onclick=function(){
+    var anyOn = (!window.CSF_STATIC) || (typeof morphPlaying!=="undefined"&&morphPlaying) || (typeof weavePlaying!=="undefined"&&weavePlaying);
+    if(typeof morphPlaying!=="undefined"&&morphPlaying&&typeof stopMorphPlay==="function") stopMorphPlay();
+    if(typeof weavePlaying!=="undefined"&&weavePlaying&&typeof stopWeave==="function") stopWeave();
+    if(anyOn){ window.CSF_STATIC=true; }                                   // turn motion OFF (static)
+    else { if(!state.animType||state.animType==="none") state.animType="boil"; state.animSet=[state.animType]; window.CSF_STATIC=false; }  // motion ON: surface flows in place
+    safe(syncAllUI); render(); syncShell();
+  };
+  document.querySelectorAll("#s_animChips button").forEach(function(b){ b.onclick=function(){
+    state.animType=b.dataset.v; state.animSet=[b.dataset.v];
+    if(typeof morphPlaying!=="undefined"&&morphPlaying&&typeof stopMorphPlay==="function") stopMorphPlay();
+    if(typeof weavePlaying!=="undefined"&&weavePlaying&&typeof stopWeave==="function") stopWeave();
+    window.CSF_STATIC=false;                                               // show the picked motion
+    safe(syncAllUI); render(); syncShell();
+  }; });
   document.getElementById("s_speed").oninput=function(){ state.animSpeed=+this.value; safe(syncAllUI); render(); syncShell(); };
   document.getElementById("s_svg").onclick=function(){ exportSVG(); };
   document.getElementById("s_png").onclick=function(){ exportPNG(3); };
