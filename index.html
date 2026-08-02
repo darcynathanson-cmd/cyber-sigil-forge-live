@@ -1763,6 +1763,7 @@ function seg(id,key,after){
 }
 let _stripT=0;
 let REELING=false;   // suppress strip rebuilds while a reel is baking (pure overhead during export)
+let _EXPORTING=false;   // one export at a time — prevents a second export mutating the design mid-bake (spliced-in foreign frames)
 function refreshStrip(){ if(REELING) return; if(typeof refreshMotionStrip==="function") refreshMotionStrip(); if(!VARIANTS.length) return; clearTimeout(_stripT); _stripT=setTimeout(renderVariants,180); }
 function slider(id,key,fmt,after){
   const el=document.getElementById(id), out=document.getElementById(id+"v");
@@ -2238,11 +2239,15 @@ async function rasterFrame(t,W,H,scale){
 }
 async function exportWEBM(btn){
   if(!(state.animSet&&state.animSet.length)&&(!state.animType||state.animType==="none")){ alert("Pick at least one Motion first (Animation section). The video bakes the combined motions; Cycle mode isn't recorded."); return; }
+  if(_EXPORTING){ alert("Hold on — an export is already running. Let it finish before starting another."); return; }
   const label=btn?btn.textContent:""; if(btn){btn.textContent="Rendering…";btn.disabled=true;}
+  _EXPORTING=true; REELING=true;   // freeze the design: bake ONLY the current look, no concurrent mutation
+  if(typeof morphPlaying!=='undefined' && morphPlaying && typeof stopMorphPlay==='function') stopMorphPlay();
   try{
     const H=1000,W=Math.round(1000*state.ratio), fps=24, N=48;
     const {OW,OH,RS}=reelOutSize(W,H,N);           // upscale to a 1920 long edge (1080×1920 for 9:16)
-    const frames=[]; for(let i=0;i<N;i++) frames.push(await rasterFrame(i/N,W,H,RS));
+    const _snap=looksState(true), _snapComp=COMP.map(c=>JSON.parse(JSON.stringify(c)));   // freeze the look
+    const frames=[]; for(let i=0;i<N;i++){ Object.assign(state,_snap); COMP=_snapComp; frames.push(await rasterFrame(i/N,W,H,RS)); }   // re-assert each frame → ONE design, no leaks
     const cv=document.createElement("canvas"); cv.width=OW; cv.height=OH; const ctx=cv.getContext("2d");
     const stream=cv.captureStream(fps);
     const {mime,ext}=pickVideoMime();
@@ -2253,6 +2258,7 @@ async function exportWEBM(btn){
     rec.stop(); await done;
     download(`cyber-sigil-${state.mode}-${state.seed}-${OW}x${OH}.${ext}`, new Blob(chunks,{type:mime.split(';')[0]}));
   }catch(e){ alert("WEBM export not supported in this browser — the exported SVG is animated, or try PNG. ("+e.message+")"); }
+  finally{ _EXPORTING=false; REELING=false; }
   if(btn){btn.textContent=label;btn.disabled=false;}
 }
 
@@ -2265,6 +2271,9 @@ const REEL_MOTIONS=["boil","liquid","morph","goo","ripple"];
 async function exportReel(mode,btn,segsOverride){
   const label=btn?btn.textContent:"";
   const setBtn=t=>{ if(btn){btn.textContent=t;btn.disabled=true;} };
+  if(_EXPORTING){ alert("Hold on — an export is already running. Let it finish first."); return; }
+  _EXPORTING=true;
+  if(typeof morphPlaying!=='undefined' && morphPlaying && typeof stopMorphPlay==='function') stopMorphPlay();
   const snap=looksState(true), snapCyc=state.animCycle, snapSet=(state.animSet||[]).slice(), snapType=state.animType;
   // segment plan
   let plan=[];
@@ -2301,7 +2310,7 @@ async function exportReel(mode,btn,segsOverride){
     rec.stop(); await done;
     download(`cyber-sigil-reel-${mode}-${state.seed}-${OW}x${OH}.${ext}`, new Blob(chunks,{type:mime.split(';')[0]}));
   }catch(e){ alert("Reel export failed — this browser may not support video recording. Try Chrome/Edge, or export SVG/PNG. ("+e.message+")"); }
-  REELING=false;
+  REELING=false; _EXPORTING=false;
   Object.assign(state,snap); state.animCycle=snapCyc; state.animSet=snapSet; state.animType=snapType;   // restore
   syncAllUI(); render(); refreshStrip();
   if(btn){btn.textContent=label;btn.disabled=false;}
@@ -2325,6 +2334,9 @@ function morphLook(obj,base,ph,off){   // oscillate one look's shape dials aroun
 async function exportMorph(btn){
   const label=btn?btn.textContent:"";
   const setBtn=t=>{ if(btn){btn.textContent=t;btn.disabled=true;} };
+  if(_EXPORTING){ alert("Hold on — an export is already running. Let it finish first."); return; }
+  _EXPORTING=true;
+  if(typeof morphPlaying!=='undefined' && morphPlaying && typeof stopMorphPlay==='function') stopMorphPlay();
   const snap=looksState(true), snapSet=(state.animSet||[]).slice(), snapType=state.animType, snapCyc=state.animCycle;
   const compBase=COMP.map(c=>JSON.parse(JSON.stringify(c)));   // frozen home for each stacked layer
   try{
@@ -2354,7 +2366,7 @@ async function exportMorph(btn){
     frames.forEach(f=>{ try{ f.close&&f.close(); }catch(e){} });
     download(`cyber-sigil-morph-${state.seed}-${OW}x${OH}.${ext}`, new Blob(chunks,{type:mime.split(';')[0]}));
   }catch(e){ alert("Morph export failed — this browser may not support video recording. Try Chrome/Edge. ("+e.message+")"); }
-  REELING=false;
+  REELING=false; _EXPORTING=false;
   COMP=compBase;   // restore stacked layers to their pre-morph state
   Object.assign(state,snap); state.animSet=snapSet; state.animType=snapType; state.animCycle=snapCyc;
   syncAllUI(); renderCompList(); render(); refreshStrip();
