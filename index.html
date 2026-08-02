@@ -2206,25 +2206,40 @@ function _recTicker(btn,totalFrames,fps){
 /* ---- shared export progress overlay: clear phase + progress bar + Saved/Failed state
    (replaces the cryptic on-button text + misleading "N minutes left" estimate) ---- */
 const CSFProg=(function(){
-  let el,bar,ttl,sub;
+  let el,bar,ttl,sub,tip,active=false,paused=false,lastT='',lastS='';
   const clamp=x=>Math.max(0,Math.min(1,x));
+  const GRAD='linear-gradient(90deg,#22e0ff,#ff5ec4)';
+  function paint(){
+    if(!el) return;
+    if(paused){
+      // The frame rasteriser needs the window painting; Chrome pauses it when the window is
+      // hidden/behind another. Say so plainly instead of a silent freeze.
+      ttl.textContent='⏸ Paused'; sub.textContent='Click back into this window to keep rendering';
+      bar.style.background='#f5a623';
+    }else{
+      ttl.textContent=lastT||'Exporting…'; sub.textContent=lastS||''; bar.style.background=GRAD;
+    }
+  }
+  function syncState(){ if(!active) return; paused=(document.hidden||!document.hasFocus()); paint(); }
   function ensure(){
     if(el) return;
     el=document.createElement('div'); el.id='csfProg';
     el.style.cssText='position:fixed;inset:0;z-index:99999;display:none;align-items:center;justify-content:center;background:rgba(6,6,10,.72)';
-    el.innerHTML='<div style="min-width:300px;max-width:80vw;padding:22px 24px;border-radius:16px;background:#101018;border:1px solid rgba(255,255,255,.08);box-shadow:0 20px 60px rgba(0,0,0,.5);color:#e8e8f0;font-family:inherit">'
+    el.innerHTML='<div style="min-width:320px;max-width:82vw;padding:22px 24px;border-radius:16px;background:#101018;border:1px solid rgba(255,255,255,.08);box-shadow:0 20px 60px rgba(0,0,0,.5);color:#e8e8f0;font-family:inherit">'
       +'<div id="csfProgTtl" style="font-size:15px;font-weight:600;margin-bottom:4px">Exporting…</div>'
       +'<div id="csfProgSub" style="font-size:12px;opacity:.7;margin-bottom:14px">Getting ready…</div>'
-      +'<div style="height:8px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden"><div id="csfProgBar" style="height:100%;width:0%;border-radius:99px;background:linear-gradient(90deg,#22e0ff,#ff5ec4);transition:width .18s ease"></div></div>'
+      +'<div style="height:8px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden"><div id="csfProgBar" style="height:100%;width:0%;border-radius:99px;background:'+GRAD+';transition:width .18s ease"></div></div>'
+      +'<div id="csfProgTip" style="font-size:11px;opacity:.5;margin-top:12px">Keep this window in front until it’s done.</div>'
       +'</div>';
     document.body.appendChild(el);
-    bar=el.querySelector('#csfProgBar'); ttl=el.querySelector('#csfProgTtl'); sub=el.querySelector('#csfProgSub');
+    bar=el.querySelector('#csfProgBar'); ttl=el.querySelector('#csfProgTtl'); sub=el.querySelector('#csfProgSub'); tip=el.querySelector('#csfProgTip');
+    window.addEventListener('blur',syncState); window.addEventListener('focus',syncState); document.addEventListener('visibilitychange',syncState);
   }
   return {
-    show(t,s){ ensure(); ttl.textContent=t||'Exporting…'; sub.textContent=s||''; bar.style.width='0%'; bar.style.background='linear-gradient(90deg,#22e0ff,#ff5ec4)'; el.style.display='flex'; },
-    set(frac,t,s){ ensure(); if(t!=null)ttl.textContent=t; if(s!=null)sub.textContent=s; bar.style.width=Math.round(clamp(frac)*100)+'%'; },
-    done(msg){ ensure(); ttl.textContent='Saved ✓'; sub.textContent=msg||'Check your Downloads folder.'; bar.style.width='100%'; bar.style.background='#37d67a'; setTimeout(()=>{ if(el) el.style.display='none'; },2600); },
-    fail(msg){ ensure(); ttl.textContent='Export failed'; sub.textContent=msg||''; bar.style.background='#ff5a5a'; setTimeout(()=>{ if(el) el.style.display='none'; },3400); }
+    show(t,s){ ensure(); active=true; lastT=t||'Exporting…'; lastS=s||''; bar.style.width='0%'; if(tip)tip.style.display=''; el.style.display='flex'; paused=(document.hidden||!document.hasFocus()); paint(); },
+    set(frac,t,s){ ensure(); if(t!=null)lastT=t; if(s!=null)lastS=s; bar.style.width=Math.round(clamp(frac)*100)+'%'; if(!paused)paint(); },
+    done(msg){ ensure(); active=false; paused=false; ttl.textContent='Saved ✓'; sub.textContent=msg||'Check your Downloads folder.'; if(tip)tip.style.display='none'; bar.style.width='100%'; bar.style.background='#37d67a'; setTimeout(()=>{ if(el) el.style.display='none'; },2600); },
+    fail(msg){ ensure(); active=false; paused=false; ttl.textContent='Export failed'; sub.textContent=msg||''; if(tip)tip.style.display='none'; bar.style.background='#ff5a5a'; setTimeout(()=>{ if(el) el.style.display='none'; },3400); }
   };
 })();
 async function exportWEBM(btn){
