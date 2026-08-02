@@ -2154,7 +2154,10 @@ function exportGalleryZip(){
 /* choose the best available recorder container — mp4/H.264 when the browser supports it
    (best for Reels / Stories / TikTok), otherwise webm */
 function pickVideoMime(){
-  const prefs=["video/mp4;codecs=avc1.640028","video/mp4;codecs=avc1.42E01E","video/mp4","video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"];
+  // Only pick an mp4 container when H.264 (avc1) is explicitly available — a bare "video/mp4"
+  // can silently be VP9-in-mp4, which QuickTime refuses to open. If no H.264, fall back to webm
+  // (and the file is honestly named .webm, openable in Chrome/VLC).
+  const prefs=["video/mp4;codecs=avc1.640028","video/mp4;codecs=avc1.42E01E","video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"];
   let m="video/webm";
   for(const x of prefs){ try{ if(MediaRecorder.isTypeSupported(x)){ m=x; break; } }catch(e){} }
   return { mime:m, ext: m.indexOf("mp4")>=0 ? "mp4" : "webm" };
@@ -2170,23 +2173,24 @@ function reelOutSize(W,H,frameCount){
   const even=n=>{ n=Math.round(n); return n%2? n-1 : n; };   // H.264/mp4 needs even dimensions
   return { OW:even(W*RS), OH:even(H*RS), RS };
 }
-async function rasterFrame(t,W,H,scale){
-  scale=scale||1;
-  let svg=buildSVG(true,t);
-  if(scale!==1){ const ow=Math.round(W*scale), oh=Math.round(H*scale);
-    svg=svg.replace(`width="${W}" height="${H}"`, `width="${ow}" height="${oh}"`); }   // viewBox stays 0 0 W H → crisp vector upscale
+async function rasterSVGStr(svg){
+  // Rasterise an SVG string to a bitmap. decode() drives the image decode pipeline directly, so
+  // frames rasterise even when the Chrome window is backgrounded/occluded — img.onload for an
+  // SVG blob can stall until the window paints. Fall back to the load event if decode() rejects.
   const url=URL.createObjectURL(new Blob([svg],{type:"image/svg+xml"}));
-  const img=new Image();
-  img.src=url;
-  // decode() drives the image decode pipeline directly, so frames rasterise even when the
-  // Chrome window is backgrounded/occluded. img.onload for an SVG blob can stall until the
-  // window actually paints (froze video exports at ~1% behind another window) — decode() does
-  // not. Fall back to the load event if decode() is unavailable or rejects.
+  const img=new Image(); img.src=url;
   try{ await img.decode(); }
   catch(e){ await new Promise((res)=>{ if(img.complete){res();return;} img.onload=res; img.onerror=res; }); }
   let bmp; try{ bmp=await createImageBitmap(img); }catch(e){ bmp=img; }
   URL.revokeObjectURL(url);
   return bmp;
+}
+async function rasterFrame(t,W,H,scale){
+  scale=scale||1;
+  let svg=buildSVG(true,t);
+  if(scale!==1){ const ow=Math.round(W*scale), oh=Math.round(H*scale);
+    svg=svg.replace(`width="${W}" height="${H}"`, `width="${ow}" height="${oh}"`); }   // viewBox stays 0 0 W H → crisp vector upscale
+  return rasterSVGStr(svg);
 }
 /* ---- export progress helpers: make it clear HOW LONG a render takes ----
    Two phases: (1) baking frames — show a % + live ETA from elapsed/progress;
@@ -2359,13 +2363,23 @@ async function exportMorph(btn){
     const {OW,OH,RS}=reelOutSize(W,H,total);       // 1080×1920 for 9:16 (memory-aware for long loops)
     const c={spikiness:state.spikiness,curl:state.curl,hook:state.hook,holes:state.holes,edge:state.edge,size:state.size,rotate:state.rotate,bgAngle:state.bgAngle,bgPatScale:state.bgPatScale,echoOffset:state.echoOffset};
     CSFProg.show('Preparing video…','Setting up the render'); const _t0=performance.now();
+    // Fast bake: rasterise the static background + stacked layers ONCE, then per frame draw
+    // ONLY the animated top mark over the cached background. For stacked designs that's far
+    // fewer rasters per frame (~4× faster with a few layers). Trade-off: the stacked layers
+    // hold still; the top mark still animates — same two-node approach as the live morph preview.
+    const _svgHead=`xmlns="${SVGNS}" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" width="${OW}" height="${OH}"`;
+    const _bg=buildMorphBG();
+    const _bgBmp=await rasterSVGStr(`<svg ${_svgHead}>${_bg.inner}</svg>`);
+    const _cbake=document.createElement("canvas");_cbake.width=OW;_cbake.height=OH;const _gbake=_cbake.getContext("2d");
     const frames=[];
     for(let i=0;i<total;i++){
-      // Surface motion ONLY (ripple / goop in place) — no shape sway. animT sweeps a full
-      // seamless loop; every layer holds its geometry and just flexes its surface filter.
-      frames.push(await rasterFrame(i/total,W,H,RS));
+      const _fg=await rasterSVGStr(`<svg ${_svgHead}>${buildMorphFG(i/total)}</svg>`);
+      _gbake.clearRect(0,0,OW,OH); _gbake.drawImage(_bgBmp,0,0,OW,OH); _gbake.drawImage(_fg,0,0,OW,OH);
+      frames.push(await createImageBitmap(_cbake));
+      if(_fg.close) _fg.close();
       if(i%4===0) CSFProg.set(i/total*0.5,'Drawing frames','Frame '+(i+1)+' of '+total);
     }
+    if(_bgBmp.close) _bgBmp.close();
     const cv=document.createElement("canvas");cv.width=OW;cv.height=OH;const ctx=cv.getContext("2d");
     const stream=cv.captureStream(fps);
     const {mime,ext}=pickVideoMime();
