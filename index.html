@@ -43,10 +43,21 @@
   .row{display:flex;align-items:center;gap:8px;margin:9px 0}
   .row label{flex:0 0 96px;color:var(--dim);font-size:11.5px}
   .row .val{flex:0 0 40px;text-align:right;color:var(--ink);font-variant-numeric:tabular-nums;font-size:11px}
-  input[type=range]{flex:1;-webkit-appearance:none;height:4px;border-radius:3px;background:#33333f;outline:none}
-  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;
-     background:var(--acc);cursor:pointer;box-shadow:0 0 0 3px rgba(124,252,0,.15)}
+  /* Sliders: a 22px-tall element = big drag/tap target, with a thin 6px visible track
+     and a chunky 20px thumb so they're easy to grab and drag precisely. */
+  input[type=range]{flex:1;-webkit-appearance:none;appearance:none;height:22px;background:transparent;outline:none;cursor:pointer;touch-action:pan-y}
+  input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:3px;background:#33333f}
+  input[type=range]::-moz-range-track{height:6px;border-radius:3px;background:#33333f}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:20px;height:20px;margin-top:-7px;border-radius:50%;
+     background:var(--acc);cursor:pointer;box-shadow:0 0 0 3px rgba(124,252,0,.15);transition:box-shadow .12s}
+  input[type=range]::-moz-range-thumb{width:20px;height:20px;border:0;border-radius:50%;background:var(--acc);cursor:pointer;box-shadow:0 0 0 3px rgba(124,252,0,.15)}
+  input[type=range]:hover::-webkit-slider-thumb,input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 4px rgba(124,252,0,.32)}
+  input[type=range]:active::-webkit-slider-thumb{box-shadow:0 0 0 5px rgba(124,252,0,.4)}
   input[type=range].pk::-webkit-slider-thumb{background:var(--acc2);box-shadow:0 0 0 3px rgba(255,79,176,.15)}
+  input[type=range].pk::-moz-range-thumb{background:var(--acc2);box-shadow:0 0 0 3px rgba(255,79,176,.15)}
+  .val{cursor:text}
+  .val:hover{color:var(--acc);text-decoration:underline dotted;text-underline-offset:2px}
+  .val input.valedit{width:100%;box-sizing:border-box;text-align:right;font:inherit;font-size:11px;color:var(--ink);background:#22222c;border:1px solid var(--acc);border-radius:4px;padding:0 3px;outline:none}
   .seg{display:flex;gap:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel2)}
   .seg button{flex:1;background:transparent;border:0;color:var(--dim);padding:7px 4px;font-size:11.5px;cursor:pointer;font-family:inherit}
   .seg button.on{background:var(--acc);color:#0b0b0e;font-weight:600}
@@ -1870,6 +1881,35 @@ function renderPresets(){
 /* push the ENTIRE state into every control so the panel reflects it */
 function segSet(id,val){document.querySelectorAll('#'+id+' button').forEach(b=>b.classList.toggle('on',b.dataset.v===String(val)));}
 function setRange(id){const el=document.getElementById(id);if(!el)return;el.value=state[id];const o=document.getElementById(id+'v');if(o)o.textContent=el.value;}
+/* Click a slider's number to type an EXACT value — dragging can be fiddly for precise
+   settings. Works for every slider (static + generated): we find the sibling range by the
+   `<id>v` naming, clamp+snap the typed value, then fire the slider's own `input` event so
+   all existing wiring (state + render + label formatting) runs unchanged. */
+(function(){
+  function sliderFor(v){ const id=v.id&&v.id.slice(-1)==='v'?v.id.slice(0,-1):null; const el=id&&document.getElementById(id); return (el&&el.type==='range')?el:null; }
+  document.addEventListener('click',function(e){
+    const v=e.target.closest&&e.target.closest('.val'); if(!v||v.querySelector('input')) return;
+    const sl=sliderFor(v); if(!sl) return;
+    const restore=v.textContent, inp=document.createElement('input');
+    inp.type='text'; inp.className='valedit'; inp.value=sl.value;
+    inp.setAttribute('inputmode','decimal');
+    v.textContent=''; v.appendChild(inp); inp.focus(); inp.select();
+    let done=false;
+    function commit(save){
+      if(done) return; done=true;
+      let ok=false;
+      if(save){ let n=parseFloat(inp.value);
+        if(isFinite(n)){ const mn=parseFloat(sl.min), mx=parseFloat(sl.max), st=parseFloat(sl.step)||1;
+          n=Math.max(mn,Math.min(mx,n)); n=Math.round((n-mn)/st)*st+mn; n=parseFloat(n.toFixed(6));
+          sl.value=n; sl.dispatchEvent(new Event('input',{bubbles:true})); ok=true; } }
+      if(!ok && v.contains(inp)) v.textContent=restore;   // bad/cancelled → put the number back
+    }
+    inp.addEventListener('keydown',function(ev){ ev.stopPropagation();
+      if(ev.key==='Enter'){ ev.preventDefault(); commit(true); }
+      else if(ev.key==='Escape'){ ev.preventDefault(); commit(false); } });
+    inp.addEventListener('blur',function(){ commit(true); });
+  });
+})();
 function setColor(id){const el=document.getElementById(id);if(el&&/^#([0-9a-f]{6})$/i.test(state[id]))el.value=state[id];}
 function syncAnimChips(){
   const set=Array.isArray(state.animSet)?state.animSet:[];
@@ -2250,6 +2290,21 @@ async function rasterFrame(t,W,H,scale){
   URL.revokeObjectURL(url);
   return bmp;
 }
+/* ---- export progress helpers: make it clear HOW LONG a render takes ----
+   Two phases: (1) baking frames — show a % + live ETA from elapsed/progress;
+   (2) recording the video, which plays back in real time so its length is known
+   up front — show a countdown. Messages stay short so they fit on the button. */
+function _fmtDur(s){ s=Math.max(0,Math.ceil(s)); return s>=60?`${Math.floor(s/60)}m${String(s%60).padStart(2,'0')}s`:`${s}s`; }
+function _bakeMsg(i,total,t0){
+  const el=(performance.now()-t0)/1000, p=total?(i+1)/total:0;
+  const rem = p>0.04 ? el/p-el : total*0.05;   // rough seed before we have real signal
+  return `Baking ${Math.round(p*100)}% · ${_fmtDur(rem)} left`;
+}
+/* returns a per-frame tick(done) that updates the button with a recording countdown */
+function _recTicker(btn,totalFrames,fps){
+  const rs=performance.now(), ms=totalFrames*(1000/fps);
+  return (done)=>{ if(btn && done%8===0){ btn.textContent=`Saving video · ${_fmtDur((ms-(performance.now()-rs))/1000)} left`; } };
+}
 async function exportWEBM(btn){
   if(typeof weavePlaying!=='undefined' && weavePlaying) return exportWeave(btn);   // weaving → bake the A→B→A loop
   if(!(state.animSet&&state.animSet.length)&&(!state.animType||state.animType==="none")){ alert("Pick at least one Motion first (Animation section). The video bakes the combined motions; Cycle mode isn't recorded."); return; }
@@ -2261,14 +2316,16 @@ async function exportWEBM(btn){
     const H=1000,W=Math.round(1000*state.ratio), fps=24, N=48;
     const {OW,OH,RS}=reelOutSize(W,H,N);           // upscale to a 1920 long edge (1080×1920 for 9:16)
     const _snap=looksState(true), _snapComp=COMP.map(c=>JSON.parse(JSON.stringify(c)));   // freeze the look
-    const frames=[]; for(let i=0;i<N;i++){ Object.assign(state,_snap); COMP=_snapComp; frames.push(await rasterFrame(i/N,W,H,RS)); }   // re-assert each frame → ONE design, no leaks
+    const _t0=performance.now();
+    const frames=[]; for(let i=0;i<N;i++){ Object.assign(state,_snap); COMP=_snapComp; frames.push(await rasterFrame(i/N,W,H,RS)); if(btn&&i%6===0)btn.textContent=_bakeMsg(i,N,_t0); }   // re-assert each frame → ONE design, no leaks
     const cv=document.createElement("canvas"); cv.width=OW; cv.height=OH; const ctx=cv.getContext("2d");
     const stream=cv.captureStream(fps);
     const {mime,ext}=pickVideoMime();
     const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:16000000});
     const chunks=[]; rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
     const done=new Promise(r=>rec.onstop=r); rec.start();
-    for(let loop=0;loop<3;loop++) for(let i=0;i<N;i++){ ctx.clearRect(0,0,OW,OH); ctx.drawImage(frames[i],0,0,OW,OH); await new Promise(r=>setTimeout(r,1000/fps)); }
+    const _tick=_recTicker(btn,3*N,fps); let _fc=0;
+    for(let loop=0;loop<3;loop++) for(let i=0;i<N;i++){ ctx.clearRect(0,0,OW,OH); ctx.drawImage(frames[i],0,0,OW,OH); _tick(++_fc); await new Promise(r=>setTimeout(r,1000/fps)); }
     rec.stop(); await done;
     download(`cyber-sigil-${state.mode}-${state.seed}-${OW}x${OH}.${ext}`, new Blob(chunks,{type:mime.split(';')[0]}));
   }catch(e){ alert("WEBM export not supported in this browser — the exported SVG is animated, or try PNG. ("+e.message+")"); }
@@ -2310,9 +2367,10 @@ async function exportReel(mode,btn,segsOverride){
     const chunks=[];rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
     const done=new Promise(r=>rec.onstop=r);
     const canPause=typeof rec.pause==='function';
-    rec.start();
+    rec.start(); const _t0=performance.now();
     for(let s=0;s<plan.length;s++){
-      setBtn(`Reel ${s+1}/${plan.length}…`);
+      const _elapsed=(performance.now()-_t0)/1000, _rem=s>0?_elapsed/s*(plan.length-s):plan.length*2.5;
+      setBtn(`Reel ${s+1}/${plan.length} · ${_fmtDur(_rem)} left`);
       if(canPause && rec.state==='recording') rec.pause();   // don't record the baking freeze
       if(plan[s].shuffle){ randomizeEverything(); const m=REEL_MOTIONS[randInt(0,REEL_MOTIONS.length-1)]; state.animSet=[m]; state.animType=m; }
       else { state.animSet=[plan[s].motion]; state.animType=plan[s].motion; }
@@ -2361,13 +2419,13 @@ async function exportMorph(btn){
     const H=1000,W=Math.round(1000*state.ratio),fps=24,total=Math.max(48,Math.min(240,Math.round((state.morphSecs||6)*fps)));   // exact loop length (honours morphSecs up to 10s)
     const {OW,OH,RS}=reelOutSize(W,H,total);       // 1080×1920 for 9:16 (memory-aware for long loops)
     const c={spikiness:state.spikiness,curl:state.curl,hook:state.hook,holes:state.holes,edge:state.edge,size:state.size,rotate:state.rotate,bgAngle:state.bgAngle,bgPatScale:state.bgPatScale,echoOffset:state.echoOffset};
-    setBtn("Baking…");
+    setBtn("Baking…"); const _t0=performance.now();
     const frames=[];
     for(let i=0;i<total;i++){
       // Surface motion ONLY (ripple / goop in place) — no shape sway. animT sweeps a full
       // seamless loop; every layer holds its geometry and just flexes its surface filter.
       frames.push(await rasterFrame(i/total,W,H,RS));
-      if(i%12===0) setBtn(`Baking ${Math.round(i/total*100)}%…`);
+      if(i%8===0) setBtn(_bakeMsg(i,total,_t0));
     }
     const cv=document.createElement("canvas");cv.width=OW;cv.height=OH;const ctx=cv.getContext("2d");
     const stream=cv.captureStream(fps);
@@ -2375,8 +2433,9 @@ async function exportMorph(btn){
     const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:16000000});   // 16 Mbps for crisp 1080p
     const chunks=[];rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
     const done=new Promise(r=>rec.onstop=r);
-    setBtn("Recording…"); rec.start();
-    for(let loop=0;loop<3;loop++) for(let i=0;i<total;i++){ ctx.clearRect(0,0,OW,OH); ctx.drawImage(frames[i],0,0,OW,OH); await new Promise(r=>setTimeout(r,1000/fps)); }
+    setBtn(`Saving video · ${_fmtDur(3*total/fps)} left`); rec.start();
+    const _tick=_recTicker(btn,3*total,fps); let _fc=0;
+    for(let loop=0;loop<3;loop++) for(let i=0;i<total;i++){ ctx.clearRect(0,0,OW,OH); ctx.drawImage(frames[i],0,0,OW,OH); _tick(++_fc); await new Promise(r=>setTimeout(r,1000/fps)); }
     rec.stop(); await done;
     frames.forEach(f=>{ try{ f.close&&f.close(); }catch(e){} });
     download(`cyber-sigil-morph-${state.seed}-${OW}x${OH}.${ext}`, new Blob(chunks,{type:mime.split(';')[0]}));
@@ -2499,13 +2558,13 @@ async function exportWeave(btn){
     const H=1000,W=Math.round(1000*state.ratio),fps=24,total=Math.max(48,Math.min(240,Math.round((state.morphSecs||6)*fps)));
     const {OW,OH,RS}=reelOutSize(W,H,total);
     const amt=(state.morphAmt!=null?state.morphAmt:1);
-    setBtn("Baking…");
+    setBtn("Baking…"); const _t0=performance.now();
     const frames=[];
     for(let i=0;i<total;i++){
       const ph=(i/total)*2*Math.PI;
       morphEvolve(state,home,ph,amt);                    // reshape hero geometry (no rotation), seamless
       frames.push(await rasterFrame((i/total),W,H,RS));  // + surface flow (animT sweeps one loop)
-      if(i%12===0) setBtn(`Baking ${Math.round(i/total*100)}%…`);
+      if(i%8===0) setBtn(_bakeMsg(i,total,_t0));
     }
     Object.assign(state,home);
     const cv=document.createElement("canvas");cv.width=OW;cv.height=OH;const ctx=cv.getContext("2d");
@@ -2514,8 +2573,9 @@ async function exportWeave(btn){
     const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:16000000});
     const chunks=[];rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
     const done=new Promise(r=>rec.onstop=r);
-    setBtn("Recording…"); rec.start();
-    for(let loop=0;loop<3;loop++) for(let i=0;i<total;i++){ ctx.clearRect(0,0,OW,OH); ctx.drawImage(frames[i],0,0,OW,OH); await new Promise(r=>setTimeout(r,1000/fps)); }
+    setBtn(`Saving video · ${_fmtDur(3*total/fps)} left`); rec.start();
+    const _tick=_recTicker(btn,3*total,fps); let _fc=0;
+    for(let loop=0;loop<3;loop++) for(let i=0;i<total;i++){ ctx.clearRect(0,0,OW,OH); ctx.drawImage(frames[i],0,0,OW,OH); _tick(++_fc); await new Promise(r=>setTimeout(r,1000/fps)); }
     rec.stop(); await done;
     frames.forEach(f=>{ try{ f.close&&f.close(); }catch(e){} });
     download(`cyber-sigil-morph-${state.seed}-${OW}x${OH}.${ext}`, new Blob(chunks,{type:mime.split(';')[0]}));
