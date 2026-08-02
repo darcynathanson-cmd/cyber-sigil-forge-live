@@ -823,14 +823,14 @@
 <!-- ===================== WELCOME / QUICK GUIDE ===================== -->
 <div id="welcome">
   <div class="wCard">
-    <div class="wHead"><span>Make a cool sigil in 4 steps</span><button id="wClose" class="emX" title="Close">✕</button></div>
+    <div class="wHead"><span>How it works — start anywhere</span><button id="wClose" class="emX" title="Close">✕</button></div>
     <ol class="wSteps">
-      <li><b>Pick a look.</b> Open the <b>Pick a look</b> group and tap a preset. Ones marked <b>▶</b> already move. Set your colours in <b>Palette</b>.</li>
-      <li><b>Shuffle &amp; Keep.</b> Tap <b>🎲 Randomize</b> / <b>⇄ Shuffle</b> for new versions. Found a colour or shape you like? Set a <b>Keep</b> lock (Palette / Finish / Layout) and it stays while the rest re-rolls.</li>
-      <li><b>Shape &amp; move.</b> Open <b>Shape &amp; form</b> to tune the dials, or <b>Make it move</b> to add motion. Pick a <b>size</b> in <b>Layout</b> — 4:5, Square, or 9:16 for Reels.</li>
-      <li><b>Export.</b> Tap <b>⭳ Export…</b> to save an image (SVG/PNG), a morph clip, or a <b>🎬 reel video</b> that plays through many looks.</li>
+      <li><b>Build &amp; stack.</b> Design an element, then <b>⊞ Add current as a layer</b> in <b>Stack &amp; series</b> to build up a composition. Or start from a preset in <b>Pick a look</b> — whatever you like first.</li>
+      <li><b>Shuffle &amp; Keep.</b> Tap <b>🎲 Randomize</b> / <b>⇄ Shuffle</b> for new versions. Like a colour or shape? Set a <b>Keep</b> lock and it stays while the rest re-rolls.</li>
+      <li><b>Shape, colour &amp; move.</b> <b>Shape &amp; form</b> tunes the dials, <b>Palette</b> sets colours, <b>Make it move</b> adds motion. Size lives in <b>Layout</b> — 4:5, Square, or 9:16.</li>
+      <li><b>Export.</b> <b>⭳ Export…</b> saves an image (SVG/PNG), a morph clip, or a reel video.</li>
     </ol>
-    <div class="wFoot">Every section is a group — tap a header to open it. Undo anything with <b>◀ Back</b> (bottom bar). Reopen this with <b>? Guide</b>.</div>
+    <div class="wFoot">Nothing is permanent: <b>◀ Back</b> (bottom bar) now undoes <i>anything</i> — including stack &amp; layer deletes — so explore freely. Sections are groups; tap a header to open. Reopen this with <b>? Guide</b>.</div>
     <button class="btn primary" id="wGo" style="width:100%;margin-top:12px">Got it — let's go</button>
   </div>
 </div>
@@ -3166,8 +3166,16 @@ init();
 
     /* ---------- history ---------- */
     var HIST=[], HI=-1, NAV=false, BUSY=false, MAX=30;
-    function snap(){ try{ return looksState(true); }catch(e){ return null; } }
-    function lite(s){ if(!s) return ""; var o={}; for(var k in s){ if(k==='imgData') continue; o[k]=s[k]; } return JSON.stringify(o); }
+    /* A snapshot is the top look AND the whole stack (COMP), so ◀ Back undoes stack
+       add/remove/clear/random-comp too — not just look edits. This is the fix for
+       "I keep deleting stack layers by accident": every stack change is one Back away. */
+    function clone(o){ return JSON.parse(JSON.stringify(o)); }
+    function snap(){ try{ return { look:looksState(true), comp:(typeof COMP!=='undefined'&&Array.isArray(COMP))?COMP.map(clone):[] }; }catch(e){ return null; } }
+    function lite(s){ if(!s) return "";
+      var L=s.look||s, o={}; for(var k in L){ if(k==='imgData') continue; o[k]=L[k]; }
+      var C=(s.comp||[]).map(function(x){ var d={}; for(var k in x){ if(k==='imgData') continue; d[k]=x[k]; } return d; });
+      return JSON.stringify(o)+'||'+JSON.stringify(C);
+    }
     function push(){
       if(NAV) return;
       var s=snap(); if(!s) return;
@@ -3180,9 +3188,12 @@ init();
       if(i<0||i>=HIST.length) return;
       HI=i; NAV=true;
       try{
-        Object.assign(state, JSON.parse(JSON.stringify(HIST[i])));
+        var s=HIST[i], look=s.look||s;                // tolerate any legacy plain-look entries
+        Object.assign(state, clone(look));
+        if(s.comp && Array.isArray(s.comp)) COMP = s.comp.map(clone);   // restore the WHOLE stack
         if(typeof stopMorphPlay==='function' && window.morphPlaying) stopMorphPlay();
         if(typeof syncAllUI==='function') syncAllUI();
+        if(typeof renderCompList==='function') renderCompList();        // reflect the restored stack in the UI
         if(typeof render==='function') render();
       }catch(e){}
       NAV=false; updBar();
