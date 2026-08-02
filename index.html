@@ -2462,6 +2462,16 @@ function toggleMorphPlay(){ morphPlaying?stopMorphPlay():startMorphPlay(); }
    overlap mid-transition = weave), then return — a seamless loop. Cheap (opacity only; SMIL
    does the motion) and works for ANY two looks. */
 let weavePlaying=false, _weaveRAF=0, _weaveT0=0, _weaveB=null;
+/* weave timing: HOLD each design (contorting in place), then a QUICK organic melt into the other.
+   Returns m (0=A … 1=B) that sits at the ends and snaps through the middle, plus transI (0 at the
+   holds, 1 at mid-cross) that drives the melt (blur + swell). No slow slideshow fade. */
+function _weaveMix(p){
+  const tri=1-Math.abs(1-2*p);                 // 0→1→0 over the loop
+  const s=Math.min(1,Math.max(0,(tri-0.40)/0.20));   // ramp only across tri 0.40–0.60 → holds elsewhere
+  const m=s*s*(3-2*s);                          // eased mix
+  const transI=1-Math.abs(2*m-1);              // melt intensity (peaks mid-transition)
+  return {m, transI};
+}
 function _lookLayer(look, prefix, mode, animT){
   const saved=looksState(true);
   Object.assign(state, look);
@@ -2473,13 +2483,17 @@ function _lookLayer(look, prefix, mode, animT){
   return { inner, W:b.W, H:b.H };
 }
 /* one baked weave frame as a full SVG string: shared bg + A-marks & B-marks at crossfade opacities, numeric surface phase */
-function weaveFrameSVG(A,B,bOp,animT,W,H,scale){
+function weaveFrameSVG(A,B,m,transI,animT,W,H,scale){
   const bg=_lookLayer(A,'WBG','bg',null), la=_lookLayer(A,'WA','marks',animT), lb=_lookLayer(B,'WB','marks',animT);
   const ow=Math.round(W*scale), oh=Math.round(H*scale);
+  const melt = transI>0.01;
+  const bl=(10*transI).toFixed(2);                                  // organic melt: gaussian blur during the quick cross
+  const mdef = melt ? `<defs><filter id="wmelt" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="${bl}"/></filter></defs>` : '';
+  const f = melt ? ' filter="url(#wmelt)"' : '';
   return `<svg xmlns="${SVGNS}" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" width="${ow}" height="${oh}">`
-    + bg.inner
-    + `<g opacity="${(1-bOp).toFixed(3)}">${la.inner}</g>`
-    + `<g opacity="${bOp.toFixed(3)}">${lb.inner}</g></svg>`;
+    + mdef + bg.inner
+    + `<g opacity="${(1-m).toFixed(3)}"${f}>${la.inner}</g>`
+    + `<g opacity="${m.toFixed(3)}"${f}>${lb.inner}</g></svg>`;
 }
 async function rasterSVGString(svg){
   const url=URL.createObjectURL(new Blob([svg],{type:"image/svg+xml"}));
@@ -2503,8 +2517,8 @@ async function exportWeave(btn){
     setBtn("Baking…");
     const frames=[];
     for(let i=0;i<total;i++){
-      const p=i/total, bOp=0.5-0.5*Math.cos(2*Math.PI*p), t=(p*2)%1;   // seamless: opacity bounce A→B→A, surface loops twice
-      frames.push(await rasterSVGString(weaveFrameSVG(A,B,bOp,t,W,H,RS)));
+      const p=i/total, {m,transI}=_weaveMix(p), t=(p*2)%1;   // seamless A→B→A: hold-and-snap mix + organic melt, surface loops twice
+      frames.push(await rasterSVGString(weaveFrameSVG(A,B,m,transI,t,W,H,RS)));
       if(i%12===0) setBtn(`Baking ${Math.round(p*100)}%…`);
     }
     const cv=document.createElement("canvas");cv.width=OW;cv.height=OH;const ctx=cv.getContext("2d");
@@ -2551,11 +2565,12 @@ function startWeave(lookB){
     if(!weavePlaying) return;
     _weaveRAF=requestAnimationFrame(loop);
     if(!ea||!ea.isConnected){ ea=document.getElementById('weaveA'); eb=document.getElementById('weaveB'); if(!ea) return; }
-    const secs=Math.max(2,(state.morphSecs||6))*2;      // full A→B→A cycle length
+    const secs=Math.max(2,(state.morphSecs||6))*2;      // full A→B→A cycle length (mostly holds)
     const p=(((performance.now()-_weaveT0)/1000/secs)%1);
-    const bOp=0.5-0.5*Math.cos(2*Math.PI*p);            // 0→1→0 bounce, seamless
-    ea.style.opacity=(1-bOp).toFixed(3);
-    eb.style.opacity=bOp.toFixed(3);
+    const {m,transI}=_weaveMix(p);
+    const bl=(9*transI).toFixed(2), sc=(1+0.06*transI).toFixed(3);   // melt: blur + swell only during the quick cross
+    ea.style.opacity=(1-m).toFixed(3); ea.style.filter='blur('+bl+'px)'; ea.style.transform='scale('+sc+')'; ea.style.transformOrigin='50% 50%';
+    eb.style.opacity=m.toFixed(3);     eb.style.filter='blur('+bl+'px)'; eb.style.transform='scale('+sc+')'; eb.style.transformOrigin='50% 50%';
   };
   _weaveRAF=requestAnimationFrame(loop);
 }
