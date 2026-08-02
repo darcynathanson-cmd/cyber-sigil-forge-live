@@ -560,7 +560,7 @@
         <div class="slab"><b>3</b> Save / Export</div>
         <div class="mini">
           <button class="btn ghost" id="s_svg">SVG</button>
-          <button class="btn ghost" id="s_png">PNG ×2</button>
+          <button class="btn ghost" id="s_png">PNG ×3</button>
           <button class="btn ghost" id="s_vid">Video</button>
         </div>
         <button class="bigbtn poster" id="s_poster" style="margin-top:9px">🎲 Auto poster (stacked + animated)</button>
@@ -661,7 +661,7 @@
       <button class="dshuffle alt" id="dockExport">⭳ Export ▾</button>
       <div id="dockExpMenu">
         <button id="dExpSvg">SVG (vector)</button>
-        <button id="dExpPng">PNG ×2</button>
+        <button id="dExpPng">PNG ×3</button>
         <button id="dExpWebm">WEBM (this motion)</button>
         <button id="dReelMorph">🎬 Morph clip (this design)</button>
         <button id="dReelMotions">🎬 Reel · all motions</button>
@@ -790,7 +790,7 @@
       <div class="emBtns">
         <button class="btn ghost" id="expSvg">SVG · vector</button>
         <button class="btn ghost" id="expWebm">WEBM · animation</button>
-        <button class="btn ghost" id="expPng">PNG ×2</button>
+        <button class="btn ghost" id="expPng">PNG ×3</button>
         <button class="btn ghost" id="expPng4">PNG ×4</button>
       </div>
       <button class="tgl" id="transToggle2" style="width:100%;margin-top:8px">Transparent background: off</button>
@@ -2149,16 +2149,20 @@ function exportSVG(){
   download(`cyber-sigil-${state.mode}-${state.seed}.svg`, new Blob([svg],{type:"image/svg+xml"}));
 }
 function exportPNG(scale){
-  scale=scale||2;
-  const svg=buildSVG(true);
-  const H=1000,W=Math.round(1000*state.ratio);
+  scale=scale||3;
+  const H=1000,W=Math.round(1000*state.ratio), OW=W*scale, OH=H*scale;
+  // Rasterise the VECTOR at full output resolution: set the SVG's OWN width/height to the
+  // target pixel size (viewBox unchanged) so the browser renders the vector crisply. Drawing
+  // at intrinsic size then upscaling with drawImage softens every edge & line — the old bug.
+  const svg=buildSVG(true).replace(`width="${W}" height="${H}"`, `width="${OW}" height="${OH}"`);
   const img=new Image();
   const url=URL.createObjectURL(new Blob([svg],{type:"image/svg+xml"}));
   img.onload=()=>{
-    const cv=document.createElement("canvas");cv.width=W*scale;cv.height=H*scale;
-    const ctx=cv.getContext("2d");ctx.drawImage(img,0,0,cv.width,cv.height);
+    const cv=document.createElement("canvas");cv.width=OW;cv.height=OH;
+    const ctx=cv.getContext("2d"); ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality="high";
+    ctx.drawImage(img,0,0,OW,OH);   // 1:1 — the image is already rasterised at full res
     URL.revokeObjectURL(url);
-    cv.toBlob(b=>download(`cyber-sigil-${state.mode}-${state.seed}.png`,b),"image/png");
+    cv.toBlob(b=>download(`cyber-sigil-${state.mode}-${state.seed}-${OW}x${OH}.png`,b),"image/png");
   };
   img.onerror=()=>{URL.revokeObjectURL(url);alert("PNG export failed in this browser — use SVG.");};
   img.src=url;
@@ -2486,7 +2490,7 @@ function buildSimpleDock(){
   menu.addEventListener('click',e=>e.stopPropagation());
   document.addEventListener('click',()=>menu.classList.remove('open'));
   document.getElementById('dExpSvg').onclick=()=>{ menu.classList.remove('open'); exportSVG(); };
-  document.getElementById('dExpPng').onclick=()=>{ menu.classList.remove('open'); exportPNG(2); };
+  document.getElementById('dExpPng').onclick=()=>{ menu.classList.remove('open'); exportPNG(3); };
   document.getElementById('dExpWebm').onclick=()=>{ menu.classList.remove('open'); exportWEBM(document.getElementById('dockExport')); };
   document.getElementById('dockAnimate').onclick=toggleMorphPlay;
   document.getElementById('dockSurprise').onclick=surprisePoster;
@@ -2719,7 +2723,7 @@ function init(){
   document.getElementById("copyLook").onclick=()=>{const code=encodeLook();const el=document.getElementById("lookCode");el.value=code;el.focus();el.select();try{navigator.clipboard&&navigator.clipboard.writeText(code);}catch(e){}const btn=document.getElementById("copyLook");const t=btn.textContent;btn.textContent="Copied!";setTimeout(()=>btn.textContent=t,1200);};
   document.getElementById("loadLook").onclick=()=>{const ok=loadLookCode(document.getElementById("lookCode").value);const btn=document.getElementById("loadLook");if(!ok){const t=btn.textContent;btn.textContent="Bad code";setTimeout(()=>btn.textContent=t,1200);}};
   document.getElementById("expSvg").onclick=exportSVG;
-  document.getElementById("expPng").onclick=()=>exportPNG(2);
+  document.getElementById("expPng").onclick=()=>exportPNG(3);
   document.getElementById("expPng4").onclick=()=>exportPNG(4);
   document.getElementById("reelMorph").onclick=function(){exportMorph(this);};
   document.getElementById("reelMotions").onclick=function(){exportReel('motions',this);};
@@ -2925,7 +2929,7 @@ init();
   document.querySelectorAll("#s_animChips button").forEach(function(b){ b.onclick=function(){ state.animType=b.dataset.v; safe(syncAllUI); render(); syncShell(); }; });
   document.getElementById("s_speed").oninput=function(){ state.animSpeed=+this.value; safe(syncAllUI); render(); syncShell(); };
   document.getElementById("s_svg").onclick=function(){ exportSVG(); };
-  document.getElementById("s_png").onclick=function(){ exportPNG(2); };
+  document.getElementById("s_png").onclick=function(){ exportPNG(3); };
   document.getElementById("s_vid").onclick=function(){ if(!state.animType||state.animType==="none"){ alert("Turn Animate on first (step 2)."); return; } exportWEBM(this); };
   document.getElementById("s_seed").onclick=function(){ clearLookHi(); state.seed=randInt(1,999999); render(); safeStrip(); };
   document.getElementById("s_shuffle").onclick=function(){ clearLookHi(); if(typeof randomizeAll==="function") randomizeAll(); else randomizeEverything(); syncShell(); };
