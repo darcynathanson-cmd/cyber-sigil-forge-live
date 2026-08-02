@@ -188,7 +188,7 @@
 </style>
 <style id="csf-motion-css">#animChips button[data-v="shimmer"],#animChips button[data-v="pulse"],#animChips button[data-v="spin"],#animChips button[data-v="flicker"],#s_animChips button[data-v="shimmer"],#s_animChips button[data-v="pulse"],#s_animChips button[data-v="spin"],#s_animChips button[data-v="flicker"]{display:none!important}</style>
 </head>
-<body class="mode-simple">
+<body class="mode-full">
 <div id="app">
   <div id="stage">
     <div id="stageBadge">Cyber Sigil Forge</div>
@@ -200,18 +200,6 @@
   <aside id="panel">
     <div id="brand">
       <h1>Cyber <b>Sigil</b> Forge</h1>
-      <div id="modeTabs">
-        <button data-mode="simple" class="on">Simple</button>
-        <button data-mode="full">Full editor</button>
-        <button data-mode="festival" id="festTabBtn">🎬 Reel</button>
-      </div>
-      <div id="spine">
-        <button class="step on" data-step="look"><b>1</b>Pick a look</button>
-        <span class="sarrow">›</span>
-        <button class="step" data-step="move"><b>2</b>Make it move</button>
-        <span class="sarrow">›</span>
-        <button class="step" data-step="export"><b>3</b>Save / Export</button>
-      </div>
     </div>
 
     <div id="controls">
@@ -837,12 +825,12 @@
   <div class="wCard">
     <div class="wHead"><span>Make a cool sigil in 4 steps</span><button id="wClose" class="emX" title="Close">✕</button></div>
     <ol class="wSteps">
-      <li><b>Pick a look.</b> Tap a style in the row along the bottom. Ones marked <b>▶</b> already move.</li>
-      <li><b>Shuffle &amp; Keep.</b> Tap <b>⟳ Shuffle</b> for new versions. Found a color or shape you like? Tap <b>Keep</b> (Palette / Finish / Layout) and it stays put while the rest re-rolls. <b>⚲ Shape</b> re-rolls just the shape.</li>
-      <li><b>Add motion.</b> Tap <b>◈ Motion</b> and choose an animation (or <b>🎲 Surprise</b>). Pick a <b>size</b> too — 4:5, Poster, or 9:16 for Instagram.</li>
-      <li><b>Export.</b> Tap <b>⭳ Export</b> to save an image (SVG/PNG), or a <b>🎬 reel video</b> that plays through lots of looks — great for submissions.</li>
+      <li><b>Pick a look.</b> Open the <b>Pick a look</b> group and tap a preset. Ones marked <b>▶</b> already move. Set your colours in <b>Palette</b>.</li>
+      <li><b>Shuffle &amp; Keep.</b> Tap <b>🎲 Randomize</b> / <b>⇄ Shuffle</b> for new versions. Found a colour or shape you like? Set a <b>Keep</b> lock (Palette / Finish / Layout) and it stays while the rest re-rolls.</li>
+      <li><b>Shape &amp; move.</b> Open <b>Shape &amp; form</b> to tune the dials, or <b>Make it move</b> to add motion. Pick a <b>size</b> in <b>Layout</b> — 4:5, Square, or 9:16 for Reels.</li>
+      <li><b>Export.</b> Tap <b>⭳ Export…</b> to save an image (SVG/PNG), a morph clip, or a <b>🎬 reel video</b> that plays through many looks.</li>
     </ol>
-    <div class="wFoot">Want every dial? <b>⤢ Full editor</b>, top-right. You can reopen this with <b>? Guide</b>.</div>
+    <div class="wFoot">Every section is a group — tap a header to open it. Undo anything with <b>◀ Back</b> (bottom bar). Reopen this with <b>? Guide</b>.</div>
     <button class="btn primary" id="wGo" style="width:100%;margin-top:12px">Got it — let's go</button>
   </div>
 </div>
@@ -3107,19 +3095,17 @@ init();
     secs.forEach(function(s){ if(!s.closest(".grp")) controls.appendChild(s); });
   })();
 
+  /* step tabs (#spine) removed — Full editor is the only view now; its collapsible
+     groups are the navigation. Guarded in case the element is absent. */
   var spine=document.getElementById("spine");
-  function spineGo(step){
-    spine.querySelectorAll(".step").forEach(function(s){ s.classList.toggle("on", s.dataset.step===step); });
-    var m=body.classList.contains("mode-full")?"full":body.classList.contains("mode-festival")?"festival":"simple";
-    if(m==="full"){
+  if(spine){
+    function spineGo(step){
+      spine.querySelectorAll(".step").forEach(function(s){ s.classList.toggle("on", s.dataset.step===step); });
       if(step==="export"){ var ft=document.getElementById("foot"); if(ft) ft.scrollIntoView({behavior:"smooth"}); }
       else { var gid=step==="look"?"look":"motion"; var grp=document.querySelector('.grp[data-grp="'+gid+'"]'); if(grp){ grp.classList.remove("closed"); grp.scrollIntoView({behavior:"smooth",block:"start"}); } }
-    } else {
-      var panel=document.getElementById(m==="simple"?"simplePanel":"festivalPanel");
-      var a=panel.querySelector('[data-anchor="'+step+'"]'); if(a){ a.scrollIntoView({behavior:"smooth",block:"start"}); a.classList.remove("flash"); void a.offsetWidth; a.classList.add("flash"); }
     }
+    spine.querySelectorAll(".step").forEach(function(s){ s.onclick=function(){ spineGo(s.dataset.step); }; });
   }
-  spine.querySelectorAll(".step").forEach(function(s){ s.onclick=function(){ spineGo(s.dataset.step); }; });
 
   /* simple wiring */
   document.getElementById("s_more").onclick=function(){ goMode("full"); };
@@ -3160,9 +3146,7 @@ init();
   /* take over from the master's canvas-first simple mode */
   body.classList.remove("simple");
   safe(function(){ if(typeof renderMotionStrip==="function") renderMotionStrip(); });
-  var _startMode="simple"; try{ _startMode=localStorage.getItem("csf_navmode")||"simple"; }catch(e){}   // restore last mode (#15)
-  if(_startMode!=="simple"&&_startMode!=="full") _startMode="simple";
-  goMode(_startMode);
+  goMode("full");   // Full editor is the only view now (Simple/Reel modes retired from the UI)
 })();
 </script>
 
