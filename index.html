@@ -85,6 +85,13 @@
      border-radius:4px;background:rgba(10,10,14,.72);color:#fff;font-size:11px;border:0;cursor:pointer;opacity:0;transition:opacity .1s;padding:0}
   #pinRow .vt:hover .del{opacity:1}
   #pinRow .vt .del:hover{background:var(--acc2)}
+  #s_pinRow{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  #s_pinRow .vt{aspect-ratio:1;border:1px solid var(--line);border-radius:7px;overflow:hidden;cursor:pointer;background:#0f0f14;position:relative;transition:transform .1s}
+  #s_pinRow .vt:hover{transform:translateY(-2px)}
+  #s_pinRow .vt svg{width:100%;height:100%;display:block}
+  #s_pinRow .vt .del{position:absolute;top:2px;right:2px;width:17px;height:17px;line-height:16px;text-align:center;border-radius:5px;background:rgba(10,10,14,.72);color:#fff;font-size:11px;border:0;cursor:pointer;opacity:0;transition:opacity .1s;padding:0}
+  #s_pinRow .vt:hover .del{opacity:1}
+  #s_pinRow .vt .del:hover{background:var(--acc2)}
   #seriesRow{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:8px}
   #seriesRow .vt{aspect-ratio:1;border:1px solid var(--line);border-radius:6px;overflow:hidden;cursor:pointer;background:#0f0f14;position:relative;transition:transform .1s}
   #seriesRow .vt:hover{transform:translateY(-2px)}
@@ -236,6 +243,7 @@
         <div class="foothint" style="text-align:left;margin-top:2px">Controls the 🎬 Morph clip export (Export menu): how much it contorts &amp; the loop length.</div>
         <div id="compRow"></div>
         <div class="foothint" id="compHint" style="text-align:left;margin-top:5px">No layers yet. Build one element (say a frame), Add it, then design the next (a symbol) — they stack into one asset. Each layer keeps its own finish, motion &amp; position; your current design sits on top. Click a layer to edit it.</div>
+        <button class="btn ghost" id="undoComp" style="width:100%;margin-top:6px;display:none" title="Undo the last stack change (add / remove / random comp) — ⌘Z / Ctrl+Z">⤺ Undo stack change</button>
         <button class="btn ghost" id="clearComp" style="width:100%;margin-top:6px;display:none">Clear stack</button>
       </div>
       <div class="sec">
@@ -484,6 +492,8 @@
 
       <div class="sec">
         <h2>Animation</h2>
+        <button class="btn morphPlayBtn" id="animPlay" style="width:100%;background:var(--acc2);color:#fff;font-weight:700">▶ Animate</button>
+        <div class="foothint" style="text-align:left;margin:6px 0 8px">Pick a flavor below, then <b>Animate</b> to preview the morph — same one-tap play/stop as Simple mode. <b>Combine</b> &amp; <b>Cycle</b> further down are optional power controls.</div>
         <div class="row" style="align-items:flex-start;margin-top:0"><label style="margin-top:5px">Motion</label>
           <div class="chips" id="animChips" style="flex:1">
             <button data-v="none" class="on">None</button>
@@ -555,11 +565,17 @@
           <button class="btn ghost" id="s_vid">Video</button>
         </div>
         <button class="bigbtn poster" id="s_poster" style="margin-top:9px">🎲 Auto poster (stacked + animated)</button>
+        <button class="btn ghost" id="s_poster_static" style="width:100%;margin-top:6px" title="Random stacked composition, held still — no motion">🖼 Auto poster (stacked · still)</button>
         <div class="mini" style="margin-top:8px">
           <button class="btn ghost" id="s_seed" style="flex:1">↻ New seed</button>
           <button class="btn ghost" id="s_shuffle" style="flex:1">⇄ Shuffle</button>
         </div>
         <div class="foothint" style="text-align:left;margin-top:10px">Want a vertical clip? Tap <b style="color:#ffb0dd">🎬 Reel</b> up top for a 9:16 portrait Morph loop.</div>
+      </div>
+      <div class="scard" id="s_galCard" data-anchor="keep" style="display:none">
+        <div class="slab"><b>★</b> Your kept pieces</div>
+        <div id="s_pinRow"></div>
+        <div class="foothint" style="text-align:left;margin-top:8px">Tap <b>＋ Save</b> (or press <b>S</b>) to keep the current piece. Click a tile to load it back · ✕ removes it.</div>
       </div>
     </div>
 
@@ -585,6 +601,7 @@
       <div id="varStrip"></div>
       <div class="mini">
         <button class="btn" id="footSurprise" style="flex:2;background:var(--acc2);color:#fff;font-weight:700" title="Random stacked composition, auto-animated">🎲 Auto poster</button>
+        <button class="btn" id="footPosterStatic" style="flex:1;background:var(--panel2);color:var(--ink);border:1px solid var(--line)" title="Random stacked composition, held still — no motion">🖼 Still</button>
         <button class="btn morphPlayBtn" id="footAnimate" style="flex:1;background:var(--panel2);color:var(--ink);border:1px solid var(--line)">▶ Animate</button>
       </div>
       <div class="mini" style="align-items:center;gap:5px">
@@ -1631,7 +1648,7 @@ function markBlock(animT,opts){
         const bf=(P.bf+(P.bf2-P.bf)*u).toFixed(4);
         const sc=P.pulse ? (1+(P.sc-1)*Math.abs(Math.sin(ph))).toFixed(1) : (P.sc*(0.6+0.7*u)).toFixed(1);
         const seed=7;   // fixed seed — smooth organic boil (no discrete noise jumps)
-        extraDefs+=`<filter id="csfLiq_${uid}" ${reg}><feTurbulence type="${P.ty}" baseFrequency="${bf}" numOctaves="${opts&&opts.lite?1:P.oct}" seed="${seed}" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="${sc}" xChannelSelector="R" yChannelSelector="G"/></filter>`;
+        extraDefs+=`<filter id="csfLiq_${uid}" ${reg}><feTurbulence type="${P.ty}" baseFrequency="${bf}" numOctaves="${P.oct}" seed="${seed}" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="${sc}" xChannelSelector="R" yChannelSelector="G"/></filter>`;
       }
       content=`<g filter="url(#csfLiq_${uid})">${content}</g>`;
     } else if(A==="goo"){
@@ -1724,8 +1741,10 @@ function buildSVG(forExport,animT,opts){
 /* ---------- render into stage ---------- */
 let _renderRAF=0;
 function render(){
+  if(typeof morphPlaying!=='undefined' && morphPlaying) return;   // morph loop owns the stage while playing
   if(_renderRAF) return;                         // coalesce bursts into one paint per frame
   _renderRAF=requestAnimationFrame(()=>{ _renderRAF=0;
+    if(typeof morphPlaying!=='undefined' && morphPlaying) return;  // a burst may have started morph before this fired
     if(window.csfBeforeRender) window.csfBeforeRender();
     document.getElementById("frameWrap").innerHTML=buildSVG(false, window.CSF_STATIC?0:undefined);
     document.getElementById("seedTag").textContent="seed "+state.seed;
@@ -1926,19 +1945,24 @@ function pinCurrent(){ PINS.unshift(looksState(true)); if(PINS.length>GAL_MAX) P
   const b=document.getElementById('pinBtn'); if(b){ const t=b.textContent; b.textContent="✓ Saved"; setTimeout(()=>b.textContent=t,900); } }
 function deletePin(i){ PINS.splice(i,1); savePins(); renderPins(); }
 function renderPins(){
-  const row=document.getElementById('pinRow'); if(!row) return;
-  const cur=looksState(true); row.innerHTML='';
-  PINS.forEach((pin,i)=>{
-    Object.assign(state,pin);
-    const t=document.createElement('div'); t.className='vt'; t.innerHTML=buildSVG(false,null,{tile:true});
-    t.title='click to restore';
-    t.onclick=()=>{ Object.assign(state,pin); syncAllUI(); render(); refreshStrip(); };
-    const x=document.createElement('button'); x.className='del'; x.textContent='✕'; x.title='remove';
-    x.onclick=(e)=>{ e.stopPropagation(); deletePin(i); };
-    t.appendChild(x);
-    row.appendChild(t);
+  const rows=[document.getElementById('pinRow'), document.getElementById('s_pinRow')].filter(Boolean);
+  if(!rows.length){ const gc=document.getElementById('s_galCard'); if(gc) gc.style.display='none'; return; }
+  const cur=looksState(true);
+  rows.forEach(row=>{
+    row.innerHTML='';
+    PINS.forEach((pin,i)=>{
+      Object.assign(state,pin);
+      const t=document.createElement('div'); t.className='vt'; t.innerHTML=buildSVG(false,null,{tile:true});
+      t.title='click to restore';
+      t.onclick=()=>{ if(typeof morphPlaying!=='undefined'&&morphPlaying&&typeof stopMorphPlay==='function') stopMorphPlay(); Object.assign(state,pin); syncAllUI(); render(); refreshStrip(); };
+      const x=document.createElement('button'); x.className='del'; x.textContent='✕'; x.title='remove';
+      x.onclick=(e)=>{ e.stopPropagation(); deletePin(i); };
+      t.appendChild(x);
+      row.appendChild(t);
+    });
   });
   Object.assign(state,cur);
+  const gc=document.getElementById('s_galCard'); if(gc) gc.style.display=PINS.length?'block':'none';   // Simple gallery only when there are pieces (#13)
 }
 /* ---- Series: roll ONLY the shape (keep palette/finish/motion/layout) → a cohesive family ---- */
 let SERIES=[];
@@ -2178,8 +2202,30 @@ function exportGalleryZip(){
   const end=new Uint8Array([0x50,0x4b,0x05,0x06,...u16(0),...u16(0),...u16(files.length),...u16(files.length),...u32(cenSize),...u32(offset),...u16(0)]);
   download(`cyber-sigil-gallery-${files.length}.zip`, new Blob([...chunks,...central,end],{type:'application/zip'}));
 }
+/* choose the best available recorder container — mp4/H.264 when the browser supports it
+   (best for Reels / Stories / TikTok), otherwise webm */
+function pickVideoMime(){
+  const prefs=["video/mp4;codecs=avc1.640028","video/mp4;codecs=avc1.42E01E","video/mp4","video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"];
+  let m="video/webm";
+  for(const x of prefs){ try{ if(MediaRecorder.isTypeSupported(x)){ m=x; break; } }catch(e){} }
+  return { mime:m, ext: m.indexOf("mp4")>=0 ? "mp4" : "webm" };
+}
+/* target output size for a baked clip: 1080×1920 for 9:16, generalised to a 1920 long edge,
+   auto-reduced so the stored frames stay within a memory budget on long loops */
+function reelOutSize(W,H,frameCount){
+  let RS=1920/H;                                   // ideal upscale (H is always 1000 → 1.92)
+  const MAXPX=200e6;                               // ~200M px across all held frames (~0.8GB @4B) budget
+  const px=(W*RS)*(H*RS)*Math.max(1,frameCount||1);
+  if(px>MAXPX) RS*=Math.sqrt(MAXPX/px);
+  RS=Math.max(1,RS);                               // never downscale below native
+  const even=n=>{ n=Math.round(n); return n%2? n-1 : n; };   // H.264/mp4 needs even dimensions
+  return { OW:even(W*RS), OH:even(H*RS), RS };
+}
 async function rasterFrame(t,W,H,scale){
-  const svg=buildSVG(true,t);
+  scale=scale||1;
+  let svg=buildSVG(true,t);
+  if(scale!==1){ const ow=Math.round(W*scale), oh=Math.round(H*scale);
+    svg=svg.replace(`width="${W}" height="${H}"`, `width="${ow}" height="${oh}"`); }   // viewBox stays 0 0 W H → crisp vector upscale
   const url=URL.createObjectURL(new Blob([svg],{type:"image/svg+xml"}));
   const img=new Image();
   await new Promise((res)=>{img.onload=res;img.onerror=res;img.src=url;});
@@ -2192,16 +2238,17 @@ async function exportWEBM(btn){
   const label=btn?btn.textContent:""; if(btn){btn.textContent="Rendering…";btn.disabled=true;}
   try{
     const H=1000,W=Math.round(1000*state.ratio), fps=24, N=48;
-    const frames=[]; for(let i=0;i<N;i++) frames.push(await rasterFrame(i/N,W,H));
-    const cv=document.createElement("canvas"); cv.width=W; cv.height=H; const ctx=cv.getContext("2d");
+    const {OW,OH,RS}=reelOutSize(W,H,N);           // upscale to a 1920 long edge (1080×1920 for 9:16)
+    const frames=[]; for(let i=0;i<N;i++) frames.push(await rasterFrame(i/N,W,H,RS));
+    const cv=document.createElement("canvas"); cv.width=OW; cv.height=OH; const ctx=cv.getContext("2d");
     const stream=cv.captureStream(fps);
-    const mime=["video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"].find(m=>window.MediaRecorder&&MediaRecorder.isTypeSupported(m))||"video/webm";
-    const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:12000000});
+    const {mime,ext}=pickVideoMime();
+    const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:16000000});
     const chunks=[]; rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
     const done=new Promise(r=>rec.onstop=r); rec.start();
-    for(let loop=0;loop<3;loop++) for(let i=0;i<N;i++){ ctx.clearRect(0,0,W,H); ctx.drawImage(frames[i],0,0,W,H); await new Promise(r=>setTimeout(r,1000/fps)); }
+    for(let loop=0;loop<3;loop++) for(let i=0;i<N;i++){ ctx.clearRect(0,0,OW,OH); ctx.drawImage(frames[i],0,0,OW,OH); await new Promise(r=>setTimeout(r,1000/fps)); }
     rec.stop(); await done;
-    download(`cyber-sigil-${state.mode}-${state.seed}.webm`, new Blob(chunks,{type:"video/webm"}));
+    download(`cyber-sigil-${state.mode}-${state.seed}-${OW}x${OH}.${ext}`, new Blob(chunks,{type:mime.split(';')[0]}));
   }catch(e){ alert("WEBM export not supported in this browser — the exported SVG is animated, or try PNG. ("+e.message+")"); }
   if(btn){btn.textContent=label;btn.disabled=false;}
 }
@@ -2229,10 +2276,11 @@ async function exportReel(mode,btn,segsOverride){
     if(!(window.MediaRecorder)) throw new Error("MediaRecorder unavailable");
     state.animCycle=false; REELING=true;
     const H=1000,W=Math.round(1000*state.ratio),fps=24,N=36;
-    const cv=document.createElement("canvas");cv.width=W;cv.height=H;const ctx=cv.getContext("2d");
+    const {OW,OH,RS}=reelOutSize(W,H,N);           // 1080×1920 for 9:16 (per-segment frames only → full res)
+    const cv=document.createElement("canvas");cv.width=OW;cv.height=OH;const ctx=cv.getContext("2d");
     const stream=cv.captureStream(fps);
-    const mime=["video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"].find(m=>MediaRecorder.isTypeSupported(m))||"video/webm";
-    const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:12000000});
+    const {mime,ext}=pickVideoMime();
+    const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:16000000});
     const chunks=[];rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
     const done=new Promise(r=>rec.onstop=r);
     const canPause=typeof rec.pause==='function';
@@ -2242,13 +2290,13 @@ async function exportReel(mode,btn,segsOverride){
       if(canPause && rec.state==='recording') rec.pause();   // don't record the baking freeze
       if(plan[s].shuffle){ randomizeEverything(); const m=REEL_MOTIONS[randInt(0,REEL_MOTIONS.length-1)]; state.animSet=[m]; state.animType=m; }
       else { state.animSet=[plan[s].motion]; state.animType=plan[s].motion; }
-      const frames=[]; for(let i=0;i<N;i++) frames.push(await rasterFrame(i/N,W,H));   // bake one full motion loop
+      const frames=[]; for(let i=0;i<N;i++) frames.push(await rasterFrame(i/N,W,H,RS));   // bake one full motion loop
       if(canPause && rec.state==='paused') rec.resume();
-      for(let i=0;i<N;i++){ ctx.clearRect(0,0,W,H); ctx.drawImage(frames[i],0,0,W,H); await new Promise(r=>setTimeout(r,1000/fps)); }
+      for(let i=0;i<N;i++){ ctx.clearRect(0,0,OW,OH); ctx.drawImage(frames[i],0,0,OW,OH); await new Promise(r=>setTimeout(r,1000/fps)); }
       frames.forEach(f=>{ try{ f.close&&f.close(); }catch(e){} });   // free memory before next segment
     }
     rec.stop(); await done;
-    download(`cyber-sigil-reel-${mode}-${state.seed}.webm`, new Blob(chunks,{type:"video/webm"}));
+    download(`cyber-sigil-reel-${mode}-${state.seed}-${OW}x${OH}.${ext}`, new Blob(chunks,{type:mime.split(';')[0]}));
   }catch(e){ alert("Reel export failed — this browser may not support video recording. Try Chrome/Edge, or export SVG/PNG. ("+e.message+")"); }
   REELING=false;
   Object.assign(state,snap); state.animCycle=snapCyc; state.animSet=snapSet; state.animType=snapType;   // restore
@@ -2280,7 +2328,8 @@ async function exportMorph(btn){
     if(!window.MediaRecorder) throw new Error("MediaRecorder unavailable");
     REELING=true; state.animCycle=false;
     if(!(state.animSet&&state.animSet.length)){ state.animSet=['liquid']; state.animType='liquid'; }   // ensure flowing surface
-    const H=1000,W=Math.round(1000*state.ratio),fps=24,total=Math.max(48,Math.min(160,Math.round((state.morphSecs||6)*fps)));   // loop length control
+    const H=1000,W=Math.round(1000*state.ratio),fps=24,total=Math.max(48,Math.min(240,Math.round((state.morphSecs||6)*fps)));   // exact loop length (honours morphSecs up to 10s)
+    const {OW,OH,RS}=reelOutSize(W,H,total);       // 1080×1920 for 9:16 (memory-aware for long loops)
     const c={spikiness:state.spikiness,curl:state.curl,hook:state.hook,holes:state.holes,edge:state.edge,size:state.size,rotate:state.rotate,bgAngle:state.bgAngle,bgPatScale:state.bgPatScale,echoOffset:state.echoOffset};
     setBtn("Baking…");
     const frames=[];
@@ -2291,20 +2340,20 @@ async function exportMorph(btn){
       state.bgPatScale=_mclamp(c.bgPatScale+8*Math.sin(2*ph),8,60);
       state.echoOffset=_mclamp(c.echoOffset+8*Math.sin(ph+1),0,40);
       for(let j=0;j<COMP.length;j++) morphLook(COMP[j],compBase[j],ph,(j+1)*0.8);   // every stacked layer, offset phase
-      frames.push(await rasterFrame(i/total,W,H));
+      frames.push(await rasterFrame(i/total,W,H,RS));
       if(i%12===0) setBtn(`Baking ${Math.round(i/total*100)}%…`);
     }
-    const cv=document.createElement("canvas");cv.width=W;cv.height=H;const ctx=cv.getContext("2d");
+    const cv=document.createElement("canvas");cv.width=OW;cv.height=OH;const ctx=cv.getContext("2d");
     const stream=cv.captureStream(fps);
-    const mime=["video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"].find(m=>MediaRecorder.isTypeSupported(m))||"video/webm";
-    const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:12000000});
+    const {mime,ext}=pickVideoMime();
+    const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:16000000});   // 16 Mbps for crisp 1080p
     const chunks=[];rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
     const done=new Promise(r=>rec.onstop=r);
     setBtn("Recording…"); rec.start();
-    for(let loop=0;loop<3;loop++) for(let i=0;i<total;i++){ ctx.clearRect(0,0,W,H); ctx.drawImage(frames[i],0,0,W,H); await new Promise(r=>setTimeout(r,1000/fps)); }
+    for(let loop=0;loop<3;loop++) for(let i=0;i<total;i++){ ctx.clearRect(0,0,OW,OH); ctx.drawImage(frames[i],0,0,OW,OH); await new Promise(r=>setTimeout(r,1000/fps)); }
     rec.stop(); await done;
     frames.forEach(f=>{ try{ f.close&&f.close(); }catch(e){} });
-    download(`cyber-sigil-morph-${state.seed}.webm`, new Blob(chunks,{type:"video/webm"}));
+    download(`cyber-sigil-morph-${state.seed}-${OW}x${OH}.${ext}`, new Blob(chunks,{type:mime.split(';')[0]}));
   }catch(e){ alert("Morph export failed — this browser may not support video recording. Try Chrome/Edge. ("+e.message+")"); }
   REELING=false;
   COMP=compBase;   // restore stacked layers to their pre-morph state
@@ -2316,6 +2365,33 @@ async function exportMorph(btn){
 /* ---- LIVE morph playback: watch the current design/stack morph on the canvas ---- */
 let morphPlaying=false, _morphRAF=0, _morphHome=null, _morphComp=null, _morphT0=0;
 function updateMorphBtns(on){ document.querySelectorAll('.morphPlayBtn').forEach(b=>{ b.textContent=on?'⏸ Stop':'▶ Animate'; b.classList.toggle('on',on); }); }
+/* ---- morph-play render split (task #12: smooth heavy stacks) ----
+   The stacked composition layers are the expensive part: rebuilding + reparsing
+   every layer's geometry each frame drops heavy stacks to ~4fps. Instead we build
+   the whole background (bg fill + stacked layers) ONCE with self-running SMIL surface
+   motion, parse it into a persistent <svg> that we never touch again, and each frame
+   re-render ONLY the top mark (numeric morph) into a second overlaid <svg>. Per-frame
+   cost collapses from N marks to 1, and the browser reparses ~1 mark instead of the
+   whole 6MB stack. The stacked layers still flow (SMIL); only the hero mark shape-morphs. */
+function buildMorphBG(){
+  const base=markBlock(null,{});                       // top state -> bg fill + bg/grad defs
+  const W=base.W, H=base.H;
+  let stack="";
+  if(COMP.length){
+    const saved=looksState(true);
+    COMP.forEach((layer,i)=>{
+      Object.assign(state,layer); state.ratio=saved.ratio;   // share the base canvas
+      const b=markBlock(null,{});                            // animT=null => SMIL self-animation
+      stack += prefixIds(`<defs>${b.defs}${b.extraDefs}</defs>${b.animStyle}${b.content}`, 'L'+i+'_');
+    });
+    Object.assign(state,saved);
+  }
+  return { inner:`<defs>${base.defs}</defs>${base.bgRect}${stack}`, W, H };
+}
+function buildMorphFG(animT){
+  const b=markBlock(animT,{noGrain:true});
+  return `<defs>${b.defs}${b.extraDefs}</defs>${b.animStyle}${b.content}`;
+}
 function startMorphPlay(){
   if(morphPlaying) return;
   morphPlaying=true;
@@ -2323,17 +2399,27 @@ function startMorphPlay(){
   _morphComp=COMP.map(c=>JSON.parse(JSON.stringify(c)));
   if(!(state.animSet&&state.animSet.length)){ state.animSet=['liquid']; state.animType='liquid'; }
   _morphT0=performance.now(); updateMorphBtns(true);
-  const fw=document.getElementById('frameWrap'); let _last=-1;
+  if(_renderRAF){ cancelAnimationFrame(_renderRAF); _renderRAF=0; }   // drop any queued full render so it can't clobber our stage
+  const fw=document.getElementById('frameWrap');
+  function buildStage(){
+    const bg=buildMorphBG();
+    const svgHead=`xmlns="${SVGNS}" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${bg.W} ${bg.H}" preserveAspectRatio="xMidYMid meet"`;
+    fw.innerHTML=`<div class="morphStage" style="position:relative;display:inline-block;line-height:0">`
+      +`<svg id="csfMorphBg" ${svgHead}>${bg.inner}</svg>`
+      +`<svg id="csfMorphFg" ${svgHead} style="position:absolute;inset:0;width:100%;height:100%"></svg></div>`;
+    return document.getElementById('csfMorphFg');
+  }
+  let fg=buildStage(), _last=-1;
   const loop=(now)=>{
     if(!morphPlaying) return;
     _morphRAF=requestAnimationFrame(loop);
-    if(_last>=0 && now-_last<16) return;   // 60fps target — smoother goo/morph (render-bound stacks self-limit)
+    if(_last>=0 && now-_last<16) return;   // 60fps target — smoother goo/morph
     _last=now;
+    if(!fg || !fg.isConnected) fg=buildStage();   // self-heal if the stage was replaced
     const secs=state.morphSecs||6, ph=((performance.now()-_morphT0)/1000/secs)*2*Math.PI, A=(state.morphAmt!=null?state.morphAmt:1);
     morphLook(state,_morphHome,ph,0);
     state.bgAngle=_morphHome.bgAngle+60*A*Math.sin(ph);
-    for(let j=0;j<COMP.length;j++) morphLook(COMP[j],_morphComp[j],ph,(j+1)*0.8);
-    fw.innerHTML=buildSVG(false, (ph/(2*Math.PI))%1, {noGrain:true,lite:true});   // numeric frame; lite = fewer noise octaves -> smoother live playback
+    fg.innerHTML=buildMorphFG((ph/(2*Math.PI))%1);   // only the hero mark rebuilds; SMIL background keeps flowing untouched
     if(typeof positionGuides==='function') positionGuides();
   };
   _morphRAF=requestAnimationFrame(loop);
@@ -2348,6 +2434,8 @@ function stopMorphPlay(){
 function toggleMorphPlay(){ morphPlaying?stopMorphPlay():startMorphPlay(); }
 /* one tap: random stacked composition, animated */
 function surprisePoster(){ randomComp(); startMorphPlay(); }
+/* one tap: random stacked composition, held STILL (no motion) */
+function staticPoster(){ if(typeof stopMorphPlay==='function') stopMorphPlay(); randomComp(); }
 /* Reel format — 9:16 portrait, seamless morph loop */
 function festivalFormat(){
   state.ratio=0.5625; segSet('ratioSeg',0.5625); if(typeof syncDock==='function') syncDock();
@@ -2621,7 +2709,9 @@ function init(){
   document.getElementById("addComp").onclick=addCompLayer;
   document.getElementById("randComp").onclick=randomComp;
   document.getElementById("previewMorph").onclick=toggleMorphPlay;
+  { const _ap=document.getElementById("animPlay"); if(_ap) _ap.onclick=toggleMorphPlay; }
   document.getElementById("footSurprise").onclick=surprisePoster;
+  { const _fps=document.getElementById("footPosterStatic"); if(_fps) _fps.onclick=staticPoster; }
   document.getElementById("footAnimate").onclick=toggleMorphPlay;
   document.getElementById("festModal").onclick=festivalFormat;
   seg("alignSeg","alignMode",()=>applyAlign());
@@ -2791,6 +2881,7 @@ init();
     document.querySelectorAll("#modeTabs button").forEach(function(b){ b.classList.toggle("on", b.dataset.mode===m); });
     if(m==="festival") enterFestival(true);
     syncShell();
+    try{ if(m==="simple"||m==="full") localStorage.setItem("csf_navmode",m); }catch(e){}   // persist last mode (#15)
   }
   document.querySelectorAll("#modeTabs button").forEach(function(b){ b.onclick=function(){ goMode(b.dataset.mode); }; });
 
@@ -2846,6 +2937,7 @@ init();
   document.getElementById("s_seed").onclick=function(){ clearLookHi(); state.seed=randInt(1,999999); render(); safeStrip(); };
   document.getElementById("s_shuffle").onclick=function(){ clearLookHi(); if(typeof randomizeAll==="function") randomizeAll(); else randomizeEverything(); syncShell(); };
   document.getElementById("s_poster").onclick=function(){ clearLookHi(); if(typeof surprisePoster==="function") surprisePoster(); else if(typeof randomComp==="function") randomComp(); syncShell(); };
+  var _sps=document.getElementById("s_poster_static"); if(_sps) _sps.onclick=function(){ clearLookHi(); if(typeof staticPoster==="function") staticPoster(); else if(typeof randomComp==="function") randomComp(); syncShell(); };
 
   /* festival wiring — uses the master's festival format + Morph-clip export */
   function enterFestival(reset){
@@ -2858,7 +2950,9 @@ init();
   /* take over from the master's canvas-first simple mode */
   body.classList.remove("simple");
   safe(function(){ if(typeof renderMotionStrip==="function") renderMotionStrip(); });
-  goMode("simple");
+  var _startMode="simple"; try{ _startMode=localStorage.getItem("csf_navmode")||"simple"; }catch(e){}   // restore last mode (#15)
+  if(_startMode!=="simple"&&_startMode!=="full") _startMode="simple";
+  goMode(_startMode);
 })();
 </script>
 
@@ -2873,7 +2967,7 @@ init();
   function boot(){
     if(window.__csfSeamless) return; window.__csfSeamless=true;
 
-    /* static-first: no motion until you hit Animate (keeps the design clean & fast to browse) */
+    /* default: freeze motion while browsing (this is the anti-lag win) */
     window.CSF_STATIC = true;
 
     /* ---------- history ---------- */
@@ -2893,7 +2987,7 @@ init();
       HI=i; NAV=true;
       try{
         Object.assign(state, JSON.parse(JSON.stringify(HIST[i])));
-        if(typeof stopMorphPlay==='function' && morphPlaying) stopMorphPlay();
+        if(typeof stopMorphPlay==='function' && window.morphPlaying) stopMorphPlay();
         if(typeof syncAllUI==='function') syncAllUI();
         if(typeof render==='function') render();
       }catch(e){}
@@ -2919,34 +3013,14 @@ init();
     /* ---------- keep ---------- */
     function keep(){ if(typeof pinCurrent==='function'){ pinCurrent(); flash(keepBtn,'★ Kept'); } }
 
-    /* ---------- animate: static-first — build a stack, then play smooth goo + morph ---------- */
-    function isPlaying(){ try{ return !!morphPlaying; }catch(e){ return false; } }
-    function playAnim(){
-      try{
-        if(isPlaying() && typeof stopMorphPlay==='function') stopMorphPlay();   // restart to pick up a new motion/home
-        // Simple chips set animType only — mirror it into animSet (what the engine actually plays)
-        if((!state.animSet||!state.animSet.length) && state.animType && state.animType!=='none'){
-          state.animSet=[state.animType];
-        }
-        if(!(state.animSet&&state.animSet.length) && (!state.animType || state.animType==='none')){
-          state.animSet=[CHOSEN]; state.animType=CHOSEN;                         // play the chosen flavor
-          if(typeof syncAnimChips==='function') syncAnimChips();
-        }
-        window.CSF_STATIC=false;
-        if(typeof startMorphPlay==='function') startMorphPlay();
-        else if(typeof render==='function') render();
-      }catch(e){}
-      updBar();
-    }
-    function stopAnim(){
-      try{ if(typeof stopMorphPlay==='function' && isPlaying()) stopMorphPlay(); }catch(e){}
-      window.CSF_STATIC=true;
-      state.animSet=[]; state.animType='none';                                   // clean, undistorted static
-      if(typeof syncAnimChips==='function') syncAnimChips();
+    /* ---------- motion toggle ---------- */
+    function setMotion(on){
+      window.CSF_STATIC=!on;
+      if(!on && typeof stopMorphPlay==='function' && window.morphPlaying) stopMorphPlay();
       if(typeof render==='function') render();
       updBar();
     }
-    function toggleMotion(){ isPlaying()?stopAnim():playAnim(); }
+    function toggleMotion(){ setMotion(!!window.CSF_STATIC); }
 
     function motionSelected(){
       try{ return (state.animSet&&state.animSet.length)||(state.animType&&state.animType!=='none'); }catch(e){ return false; }
@@ -2972,13 +3046,13 @@ init();
 
     var backBtn=mkBtn('&#9664;','Previous roll  (←)');
     var fwdBtn =mkBtn('&#9654;','Next roll  (→)');
-    var motBtn=null;   // animate now lives on the Step-2 toggle (single control)
+    var motBtn =mkBtn('⏸ Motion off','Preview motion on/off while browsing  (M) — export always includes motion');
     var keepBtn=mkBtn('☆ Keep','Keep this piece to the gallery  (S)');
     var sep=document.createElement('span'); sep.style.cssText='width:1px;height:20px;background:rgba(255,255,255,.14);margin:0 2px';
 
-    backBtn.onclick=back; fwdBtn.onclick=fwd; keepBtn.onclick=keep;
+    backBtn.onclick=back; fwdBtn.onclick=fwd; motBtn.onclick=toggleMotion; keepBtn.onclick=keep;
     bar.appendChild(backBtn); bar.appendChild(fwdBtn); bar.appendChild(sep);
-    bar.appendChild(keepBtn);
+    bar.appendChild(motBtn); bar.appendChild(keepBtn);
     document.body.appendChild(bar);
 
     function updBar(){
@@ -2986,9 +3060,13 @@ init();
       fwdBtn.style.opacity =(HI>=0&&HI<HIST.length-1)?'1':'.35';
       var pos=(HIST.length? (HI+1)+'/'+HIST.length : '–');
       backBtn.title='Previous roll  (←)   •   '+pos;
-      var sa=document.getElementById('s_anim'), pl=isPlaying();
-      if(sa){ sa.textContent=pl?'⏸ Stop':'▶ Animate'; sa.classList.toggle('on',pl);
-        var so=document.getElementById('s_animOpts'); if(so) so.style.display=pl?'block':'none'; }
+      if(window.CSF_STATIC){
+        motBtn.innerHTML='⏸ Motion off'+(motionSelected()?' <span style="color:#7CF6C9">●</span>':'');
+        motBtn.style.color='#cfcfd6';
+      }else{
+        motBtn.innerHTML='▶ Motion on';
+        motBtn.style.color='#7CF6C9';
+      }
     }
 
     /* ---------- keyboard ---------- */
@@ -3006,19 +3084,9 @@ init();
       var el=document.getElementById(id); if(el) el.addEventListener('click', pushSoon);
     });
 
-    /* Simple "Make it move" = the ONE animate control: the toggle plays/stops, chips pick the flavor */
-    var CHOSEN='liquid';
-    function hiChips(){ Array.prototype.forEach.call(document.querySelectorAll('#s_animChips button'), function(x){ x.classList.toggle('on', x.dataset.v===CHOSEN); }); }
-    var sAnim=document.getElementById('s_anim');
-    if(sAnim){ sAnim.onclick=function(){ isPlaying()?stopAnim():playAnim(); }; }
-    Array.prototype.forEach.call(document.querySelectorAll('#s_animChips button'), function(b){
-      b.onclick=function(){ CHOSEN=b.dataset.v; hiChips(); if(isPlaying()){ state.animType=CHOSEN; state.animSet=[CHOSEN]; playAnim(); } };
-    });
-    hiChips();
-
     /* refresh hints to mention the new shortcuts */
-    var h=document.getElementById('hint'); if(h) h.textContent='Space new seed · ← → history · S keep · M animate · E export';
-    document.querySelectorAll('.foothint').forEach(function(f){ f.textContent='Build a stack, then ▶ Animate (M) · Space new seed · ← → rolls · S keep'; });
+    var h=document.getElementById('hint'); if(h) h.textContent='Space new seed · ← → history · S keep · M motion · E export';
+    document.querySelectorAll('.foothint').forEach(function(f){ f.textContent='Space new seed · ← → step through rolls · S keep to gallery · M preview motion'; });
 
     /* seed history with the opening look */
     push();
@@ -3041,7 +3109,7 @@ init();
   function boot(){
     if(window.__csfCenter) return; window.__csfCenter=true;
 
-    var TARGET_Y=0.49;      /* mark centre at 49% of height = a subtle optical lift */
+    var TARGET_Y=0.50;      /* mark centre at 50% of height = dead centre (task #18) */
     var _host=null;
     function measHost(){
       if(_host) return _host;
@@ -3099,7 +3167,7 @@ init();
       try{
         var m=state.alignMode;
         if(m!=='center' && m!=='vaxis') return;
-        if(morphPlaying) return;               // don't fight the morph loop
+        if(window.morphPlaying) return;               // don't fight the morph loop
         var sig=shapeSig();
         if(sig===_lastSig) return;                    // only re-measure when the shape changes
         var off=centerOffsets();
@@ -3164,6 +3232,92 @@ init();
 
     /* centre whatever is on screen at startup */
     try{ if(state.alignMode==='center'||state.alignMode==='vaxis'){ _lastSig=null; render(); } }catch(e){}
+  }
+  if(document.readyState==='complete'||document.readyState==='interactive'){ setTimeout(boot,0); }
+  else { window.addEventListener('load',boot); }
+})();
+</script>
+
+<script>
+/* ============ PERSIST LAST LOOK + STACK (#15): no cold-start ============
+   Saves the current look (minus any uploaded image) and the composition stack
+   to localStorage, debounced, on every paint. On boot (last, so nothing clobbers
+   it) the saved look is restored so a reload picks up where you left off. Mode is
+   persisted separately by the nav shell (csf_navmode). ==================== */
+(function(){
+  var LOOK_KEY='csf_last_look', COMP_KEY='csf_last_comp';
+  function stripImg(o){ var c={}; for(var k in o){ if(k==='imgData') continue; c[k]=o[k]; } return c; }
+  function save(){
+    try{
+      if(typeof morphPlaying!=='undefined' && morphPlaying) return;   // never persist a morph-transient frame
+      if(typeof looksState!=='function') return;
+      localStorage.setItem(LOOK_KEY, JSON.stringify(stripImg(looksState(false))));
+      var comp=(typeof COMP!=='undefined'&&Array.isArray(COMP))?COMP.map(stripImg):[];
+      localStorage.setItem(COMP_KEY, JSON.stringify(comp));
+    }catch(e){}
+  }
+  var _t=0; function schedSave(){ clearTimeout(_t); _t=setTimeout(save,600); }
+  function restore(){
+    try{
+      var raw=localStorage.getItem(LOOK_KEY); if(!raw) return;
+      var look=JSON.parse(raw); if(!look||typeof look!=='object') return;
+      Object.assign(state, look);
+      var rawC=localStorage.getItem(COMP_KEY);
+      if(rawC){ var comp=JSON.parse(rawC); if(Array.isArray(comp)) COMP=comp; }   // bare COMP = shared global-lexical binding
+      if(typeof syncAllUI==='function') syncAllUI();
+      if(typeof renderCompList==='function') renderCompList();
+      if(typeof render==='function') render();
+    }catch(e){}
+  }
+  function boot(){
+    if(window.__csfPersist) return; window.__csfPersist=true;
+    restore();
+    if(typeof window.render==='function'){                 // wrap render to auto-save after each paint
+      var _r=window.render;
+      window.render=function(){ var out=_r.apply(this,arguments); schedSave(); return out; };
+    }
+  }
+  if(document.readyState==='complete'||document.readyState==='interactive'){ setTimeout(boot,0); }
+  else { window.addEventListener('load',boot); }
+})();
+</script>
+
+<script>
+/* ============ STACK UNDO (#14) ============================================
+   Snapshots the composition stack + the top look BEFORE each stack-changing
+   op (add / remove / clear / random comp), so ⌘Z / Ctrl+Z (or the Undo button
+   in Compose) reverts the last change. Separate from the ← → look history. */
+(function(){
+  var UNDO=[], MAX=25;
+  function snap(){ try{ return { comp:(Array.isArray(COMP)?COMP.map(function(c){return JSON.parse(JSON.stringify(c));}):[]), look:looksState(true) }; }catch(e){ return null; } }
+  function updBtn(){ var b=document.getElementById('undoComp'); if(b) b.style.display=UNDO.length?'block':'none'; }
+  function push(){ var s=snap(); if(s){ UNDO.push(s); if(UNDO.length>MAX) UNDO.shift(); updBtn(); } }
+  function undo(){
+    if(!UNDO.length) return;
+    var s=UNDO.pop();
+    try{
+      if(typeof morphPlaying!=='undefined' && morphPlaying && typeof stopMorphPlay==='function') stopMorphPlay();
+      COMP=s.comp.map(function(c){return JSON.parse(JSON.stringify(c));});   // bare COMP = shared binding
+      Object.assign(state, s.look);
+      if(typeof syncAllUI==='function') syncAllUI();
+      if(typeof renderCompList==='function') renderCompList();
+      if(typeof render==='function') render();
+    }catch(e){}
+    updBtn();
+  }
+  window.csfUndoStack=undo;
+  function boot(){
+    if(window.__csfUndo) return; window.__csfUndo=true;
+    ['addCompLayer','removeComp','clearComp','randomComp'].forEach(function(name){
+      var orig=window[name]; if(typeof orig!=='function') return;
+      window[name]=function(){ push(); return orig.apply(this,arguments); };
+    });
+    var b=document.getElementById('undoComp'); if(b) b.onclick=undo;
+    window.addEventListener('keydown',function(e){
+      var t=e.target; if(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'||t.isContentEditable)) return;
+      if((e.metaKey||e.ctrlKey) && (e.key==='z'||e.key==='Z') && !e.shiftKey){ e.preventDefault(); undo(); }
+    });
+    updBtn();
   }
   if(document.readyState==='complete'||document.readyState==='interactive'){ setTimeout(boot,0); }
   else { window.addEventListener('load',boot); }
