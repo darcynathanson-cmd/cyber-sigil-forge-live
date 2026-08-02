@@ -2202,6 +2202,30 @@ function _recTicker(btn,totalFrames,fps){
   const rs=performance.now(), ms=totalFrames*(1000/fps);
   return (done)=>{ if(btn && done%8===0){ btn.textContent=`Saving video · ${_fmtDur((ms-(performance.now()-rs))/1000)} left`; } };
 }
+/* ---- shared export progress overlay: clear phase + progress bar + Saved/Failed state
+   (replaces the cryptic on-button text + misleading "N minutes left" estimate) ---- */
+const CSFProg=(function(){
+  let el,bar,ttl,sub;
+  const clamp=x=>Math.max(0,Math.min(1,x));
+  function ensure(){
+    if(el) return;
+    el=document.createElement('div'); el.id='csfProg';
+    el.style.cssText='position:fixed;inset:0;z-index:99999;display:none;align-items:center;justify-content:center;background:rgba(6,6,10,.72)';
+    el.innerHTML='<div style="min-width:300px;max-width:80vw;padding:22px 24px;border-radius:16px;background:#101018;border:1px solid rgba(255,255,255,.08);box-shadow:0 20px 60px rgba(0,0,0,.5);color:#e8e8f0;font-family:inherit">'
+      +'<div id="csfProgTtl" style="font-size:15px;font-weight:600;margin-bottom:4px">Exporting…</div>'
+      +'<div id="csfProgSub" style="font-size:12px;opacity:.7;margin-bottom:14px">Getting ready…</div>'
+      +'<div style="height:8px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden"><div id="csfProgBar" style="height:100%;width:0%;border-radius:99px;background:linear-gradient(90deg,#22e0ff,#ff5ec4);transition:width .18s ease"></div></div>'
+      +'</div>';
+    document.body.appendChild(el);
+    bar=el.querySelector('#csfProgBar'); ttl=el.querySelector('#csfProgTtl'); sub=el.querySelector('#csfProgSub');
+  }
+  return {
+    show(t,s){ ensure(); ttl.textContent=t||'Exporting…'; sub.textContent=s||''; bar.style.width='0%'; bar.style.background='linear-gradient(90deg,#22e0ff,#ff5ec4)'; el.style.display='flex'; },
+    set(frac,t,s){ ensure(); if(t!=null)ttl.textContent=t; if(s!=null)sub.textContent=s; bar.style.width=Math.round(clamp(frac)*100)+'%'; },
+    done(msg){ ensure(); ttl.textContent='Saved ✓'; sub.textContent=msg||'Check your Downloads folder.'; bar.style.width='100%'; bar.style.background='#37d67a'; setTimeout(()=>{ if(el) el.style.display='none'; },2600); },
+    fail(msg){ ensure(); ttl.textContent='Export failed'; sub.textContent=msg||''; bar.style.background='#ff5a5a'; setTimeout(()=>{ if(el) el.style.display='none'; },3400); }
+  };
+})();
 async function exportWEBM(btn){
   if(typeof weavePlaying!=='undefined' && weavePlaying) return exportWeave(btn);   // weaving → bake the A→B→A loop
   if(!(state.animSet&&state.animSet.length)&&(!state.animType||state.animType==="none")){ alert("Pick at least one Motion first (Animation section). The video bakes the combined motions; Cycle mode isn't recorded."); return; }
@@ -2209,23 +2233,25 @@ async function exportWEBM(btn){
   const label=btn?btn.textContent:""; if(btn){btn.textContent="Rendering…";btn.disabled=true;}
   _EXPORTING=true; REELING=true;   // freeze the design: bake ONLY the current look, no concurrent mutation
   if(typeof morphPlaying!=='undefined' && morphPlaying && typeof stopMorphPlay==='function') stopMorphPlay();
+  CSFProg.show('Preparing video…','Setting up the render');
   try{
     const H=1000,W=Math.round(1000*state.ratio), fps=24, N=48;
     const {OW,OH,RS}=reelOutSize(W,H,N);           // upscale to a 1920 long edge (1080×1920 for 9:16)
     const _snap=looksState(true), _snapComp=COMP.map(c=>JSON.parse(JSON.stringify(c)));   // freeze the look
     const _t0=performance.now();
-    const frames=[]; for(let i=0;i<N;i++){ Object.assign(state,_snap); COMP=_snapComp; frames.push(await rasterFrame(i/N,W,H,RS)); if(btn&&i%6===0)btn.textContent=_bakeMsg(i,N,_t0); }   // re-assert each frame → ONE design, no leaks
+    const frames=[]; for(let i=0;i<N;i++){ Object.assign(state,_snap); COMP=_snapComp; frames.push(await rasterFrame(i/N,W,H,RS)); if(i%4===0)CSFProg.set(i/N*0.5,'Drawing frames','Frame '+(i+1)+' of '+N); }   // re-assert each frame → ONE design, no leaks
     const cv=document.createElement("canvas"); cv.width=OW; cv.height=OH; const ctx=cv.getContext("2d");
     const stream=cv.captureStream(fps);
     const {mime,ext}=pickVideoMime();
     const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:16000000});
     const chunks=[]; rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
     const done=new Promise(r=>rec.onstop=r); rec.start();
-    const _tick=_recTicker(btn,3*N,fps); let _fc=0;
-    for(let loop=0;loop<3;loop++) for(let i=0;i<N;i++){ ctx.clearRect(0,0,OW,OH); ctx.drawImage(frames[i],0,0,OW,OH); _tick(++_fc); await new Promise(r=>setTimeout(r,1000/fps)); }
+    CSFProg.set(0.5,'Recording video','Encoding the loop in real time');
+    for(let i=0;i<N;i++){ ctx.clearRect(0,0,OW,OH); ctx.drawImage(frames[i],0,0,OW,OH); if(i%4===0)CSFProg.set(0.5+(i/N)*0.5,'Recording video','Encoding the loop in real time'); await new Promise(r=>setTimeout(r,1000/fps)); }
     rec.stop(); await done;
     download(`cyber-sigil-${state.mode}-${state.seed}-${OW}x${OH}.${ext}`, new Blob(chunks,{type:mime.split(';')[0]}));
-  }catch(e){ alert("WEBM export not supported in this browser — the exported SVG is animated, or try PNG. ("+e.message+")"); }
+    CSFProg.done('Saved to your Downloads folder.');
+  }catch(e){ CSFProg.fail(e.message||'This browser may not support video recording — try Chrome or Edge.'); }
   finally{ _EXPORTING=false; REELING=false; }
   if(btn){btn.textContent=label;btn.disabled=false;}
 }
@@ -2264,10 +2290,9 @@ async function exportReel(mode,btn,segsOverride){
     const chunks=[];rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
     const done=new Promise(r=>rec.onstop=r);
     const canPause=typeof rec.pause==='function';
-    rec.start(); const _t0=performance.now();
+    rec.start(); CSFProg.show('Preparing reel…','Setting up the render');
     for(let s=0;s<plan.length;s++){
-      const _elapsed=(performance.now()-_t0)/1000, _rem=s>0?_elapsed/s*(plan.length-s):plan.length*2.5;
-      setBtn(`Reel ${s+1}/${plan.length} · ${_fmtDur(_rem)} left`);
+      CSFProg.set(s/plan.length,'Recording reel','Segment '+(s+1)+' of '+plan.length);
       if(canPause && rec.state==='recording') rec.pause();   // don't record the baking freeze
       if(plan[s].shuffle){ randomizeEverything(); const m=REEL_MOTIONS[randInt(0,REEL_MOTIONS.length-1)]; state.animSet=[m]; state.animType=m; }
       else { state.animSet=[plan[s].motion]; state.animType=plan[s].motion; }
@@ -2278,7 +2303,8 @@ async function exportReel(mode,btn,segsOverride){
     }
     rec.stop(); await done;
     download(`cyber-sigil-reel-${mode}-${state.seed}-${OW}x${OH}.${ext}`, new Blob(chunks,{type:mime.split(';')[0]}));
-  }catch(e){ alert("Reel export failed — this browser may not support video recording. Try Chrome/Edge, or export SVG/PNG. ("+e.message+")"); }
+    CSFProg.done('Saved to your Downloads folder.');
+  }catch(e){ CSFProg.fail(e.message||'This browser may not support video recording — try Chrome or Edge.'); }
   REELING=false; _EXPORTING=false;
   Object.assign(state,snap); state.animCycle=snapCyc; state.animSet=snapSet; state.animType=snapType;   // restore
   syncAllUI(); render(); refreshStrip();
@@ -2316,13 +2342,13 @@ async function exportMorph(btn){
     const H=1000,W=Math.round(1000*state.ratio),fps=24,total=Math.max(48,Math.min(240,Math.round((state.morphSecs||6)*fps)));   // exact loop length (honours morphSecs up to 10s)
     const {OW,OH,RS}=reelOutSize(W,H,total);       // 1080×1920 for 9:16 (memory-aware for long loops)
     const c={spikiness:state.spikiness,curl:state.curl,hook:state.hook,holes:state.holes,edge:state.edge,size:state.size,rotate:state.rotate,bgAngle:state.bgAngle,bgPatScale:state.bgPatScale,echoOffset:state.echoOffset};
-    setBtn("Baking…"); const _t0=performance.now();
+    CSFProg.show('Preparing video…','Setting up the render'); const _t0=performance.now();
     const frames=[];
     for(let i=0;i<total;i++){
       // Surface motion ONLY (ripple / goop in place) — no shape sway. animT sweeps a full
       // seamless loop; every layer holds its geometry and just flexes its surface filter.
       frames.push(await rasterFrame(i/total,W,H,RS));
-      if(i%8===0) setBtn(_bakeMsg(i,total,_t0));
+      if(i%4===0) CSFProg.set(i/total*0.5,'Drawing frames','Frame '+(i+1)+' of '+total);
     }
     const cv=document.createElement("canvas");cv.width=OW;cv.height=OH;const ctx=cv.getContext("2d");
     const stream=cv.captureStream(fps);
@@ -2330,13 +2356,13 @@ async function exportMorph(btn){
     const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:16000000});   // 16 Mbps for crisp 1080p
     const chunks=[];rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
     const done=new Promise(r=>rec.onstop=r);
-    setBtn(`Saving video · ${_fmtDur(3*total/fps)} left`); rec.start();
-    const _tick=_recTicker(btn,3*total,fps); let _fc=0;
-    for(let loop=0;loop<3;loop++) for(let i=0;i<total;i++){ ctx.clearRect(0,0,OW,OH); ctx.drawImage(frames[i],0,0,OW,OH); _tick(++_fc); await new Promise(r=>setTimeout(r,1000/fps)); }
+    CSFProg.set(0.5,'Recording video','Encoding the loop in real time'); rec.start();
+    for(let i=0;i<total;i++){ ctx.clearRect(0,0,OW,OH); ctx.drawImage(frames[i],0,0,OW,OH); if(i%4===0)CSFProg.set(0.5+(i/total)*0.5,'Recording video','Encoding the loop in real time'); await new Promise(r=>setTimeout(r,1000/fps)); }
     rec.stop(); await done;
     frames.forEach(f=>{ try{ f.close&&f.close(); }catch(e){} });
     download(`cyber-sigil-morph-${state.seed}-${OW}x${OH}.${ext}`, new Blob(chunks,{type:mime.split(';')[0]}));
-  }catch(e){ alert("Morph export failed — this browser may not support video recording. Try Chrome/Edge. ("+e.message+")"); }
+    CSFProg.done('Saved to your Downloads folder.');
+  }catch(e){ CSFProg.fail(e.message||'This browser may not support video recording — try Chrome or Edge.'); }
   REELING=false; _EXPORTING=false;
   COMP=compBase;   // restore stacked layers to their pre-morph state
   Object.assign(state,snap); state.animSet=snapSet; state.animType=snapType; state.animCycle=snapCyc;
@@ -2460,13 +2486,13 @@ async function exportWeave(btn){
     const H=1000,W=Math.round(1000*state.ratio),fps=24,total=Math.max(48,Math.min(240,Math.round((state.morphSecs||6)*fps)));
     const {OW,OH,RS}=reelOutSize(W,H,total);
     const amt=(state.morphAmt!=null?state.morphAmt:1);
-    setBtn("Baking…"); const _t0=performance.now();
+    CSFProg.show('Preparing video…','Setting up the render'); const _t0=performance.now();
     const frames=[];
     for(let i=0;i<total;i++){
       const ph=(i/total)*2*Math.PI;
       morphEvolve(state,home,ph,amt);                    // reshape hero geometry (no rotation), seamless
       frames.push(await rasterFrame((i/total),W,H,RS));  // + surface flow (animT sweeps one loop)
-      if(i%8===0) setBtn(_bakeMsg(i,total,_t0));
+      if(i%4===0) CSFProg.set(i/total*0.5,'Drawing frames','Frame '+(i+1)+' of '+total);
     }
     Object.assign(state,home);
     const cv=document.createElement("canvas");cv.width=OW;cv.height=OH;const ctx=cv.getContext("2d");
@@ -2475,13 +2501,13 @@ async function exportWeave(btn){
     const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:16000000});
     const chunks=[];rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
     const done=new Promise(r=>rec.onstop=r);
-    setBtn(`Saving video · ${_fmtDur(3*total/fps)} left`); rec.start();
-    const _tick=_recTicker(btn,3*total,fps); let _fc=0;
-    for(let loop=0;loop<3;loop++) for(let i=0;i<total;i++){ ctx.clearRect(0,0,OW,OH); ctx.drawImage(frames[i],0,0,OW,OH); _tick(++_fc); await new Promise(r=>setTimeout(r,1000/fps)); }
+    CSFProg.set(0.5,'Recording video','Encoding the loop in real time'); rec.start();
+    for(let i=0;i<total;i++){ ctx.clearRect(0,0,OW,OH); ctx.drawImage(frames[i],0,0,OW,OH); if(i%4===0)CSFProg.set(0.5+(i/total)*0.5,'Recording video','Encoding the loop in real time'); await new Promise(r=>setTimeout(r,1000/fps)); }
     rec.stop(); await done;
     frames.forEach(f=>{ try{ f.close&&f.close(); }catch(e){} });
     download(`cyber-sigil-morph-${state.seed}-${OW}x${OH}.${ext}`, new Blob(chunks,{type:mime.split(';')[0]}));
-  }catch(e){ alert("Morph export failed — this browser may not support video recording. Try Chrome/Edge. ("+e.message+")"); }
+    CSFProg.done('Saved to your Downloads folder.');
+  }catch(e){ CSFProg.fail(e.message||'This browser may not support video recording — try Chrome or Edge.'); }
   REELING=false; _EXPORTING=false;
   COMP=compBase; Object.assign(state,snap); state.animSet=snapSet; state.animType=snapType; state.animCycle=snapCyc;
   syncAllUI(); renderCompList(); render(); refreshStrip();
