@@ -3220,6 +3220,23 @@ init();
       };
     });
 
+    /* Record ANY edit too — sliders, colours, finish/style toggles — so Back undoes
+       real changes, not only rolls. Debounced off render(): a slider drag = ONE entry
+       at rest. Guarded against navigation, morph/weave transient frames, and exports.
+       push() dedupes identical states, so idle repaints never pile up entries. */
+    var _editT=0;
+    function recordEdit(){
+      if(NAV||BUSY) return;
+      if((typeof morphPlaying!=='undefined'&&morphPlaying)||(typeof weavePlaying!=='undefined'&&weavePlaying)) return;
+      if(typeof _EXPORTING!=='undefined'&&_EXPORTING) return;
+      if(typeof REELING!=='undefined'&&REELING) return;
+      clearTimeout(_editT); _editT=setTimeout(function(){ if(!NAV) push(); },450);
+    }
+    if(typeof window.render==='function'){
+      var _rEdit=window.render;
+      window.render=function(){ var o=_rEdit.apply(this,arguments); recordEdit(); return o; };
+    }
+
     /* ---------- keep ---------- */
     function keep(){ if(typeof pinCurrent==='function'){ pinCurrent(); flash(keepBtn,'★ Kept'); } }
 
@@ -3254,8 +3271,8 @@ init();
     }
     function flash(b,txt){ if(!b)return; var o=b.innerHTML; b.innerHTML=txt; setTimeout(function(){ b.innerHTML=o; updBar(); },850); }
 
-    var backBtn=mkBtn('&#9664;','Previous roll  (←)');
-    var fwdBtn =mkBtn('&#9654;','Next roll  (→)');
+    var backBtn=mkBtn('&#9664; Back','Undo the last change — shape, colour, slider or roll  (←)');
+    var fwdBtn =mkBtn('Forward &#9654;','Redo  (→)');
     var motBtn =mkBtn('⏸ Motion off','Preview motion on/off while browsing  (M) — export always includes motion');
     var keepBtn=mkBtn('☆ Keep','Keep this piece to the gallery  (S)');
     var sep=document.createElement('span'); sep.style.cssText='width:1px;height:20px;background:rgba(255,255,255,.14);margin:0 2px';
@@ -3264,12 +3281,13 @@ init();
     bar.appendChild(backBtn); bar.appendChild(fwdBtn); bar.appendChild(sep);
     bar.appendChild(motBtn); bar.appendChild(keepBtn);
     document.body.appendChild(bar);
+    push();   // seed HIST[0] with the starting look so the first edit has something to go Back to (buttons exist now → updBar is safe)
 
     function updBar(){
       backBtn.style.opacity=(HI>0)?'1':'.35';
       fwdBtn.style.opacity =(HI>=0&&HI<HIST.length-1)?'1':'.35';
       var pos=(HIST.length? (HI+1)+'/'+HIST.length : '–');
-      backBtn.title='Previous roll  (←)   •   '+pos;
+      backBtn.title='Back — undo last change  (←)   •   step '+pos;
       if(window.CSF_STATIC){
         motBtn.innerHTML='⏸ Motion off'+(motionSelected()?' <span style="color:#7CF6C9">●</span>':'');
         motBtn.style.color='#cfcfd6';
