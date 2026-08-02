@@ -2176,7 +2176,13 @@ async function rasterFrame(t,W,H,scale){
     svg=svg.replace(`width="${W}" height="${H}"`, `width="${ow}" height="${oh}"`); }   // viewBox stays 0 0 W H → crisp vector upscale
   const url=URL.createObjectURL(new Blob([svg],{type:"image/svg+xml"}));
   const img=new Image();
-  await new Promise((res)=>{img.onload=res;img.onerror=res;img.src=url;});
+  img.src=url;
+  // decode() drives the image decode pipeline directly, so frames rasterise even when the
+  // Chrome window is backgrounded/occluded. img.onload for an SVG blob can stall until the
+  // window actually paints (froze video exports at ~1% behind another window) — decode() does
+  // not. Fall back to the load event if decode() is unavailable or rejects.
+  try{ await img.decode(); }
+  catch(e){ await new Promise((res)=>{ if(img.complete){res();return;} img.onload=res; img.onerror=res; }); }
   let bmp; try{ bmp=await createImageBitmap(img); }catch(e){ bmp=img; }
   URL.revokeObjectURL(url);
   return bmp;
