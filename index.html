@@ -75,6 +75,7 @@
   .mini{display:flex;gap:8px}
   .mini .btn{padding:9px 8px;font-weight:500;font-size:11.5px}
   .foothint{color:#55555f;font-size:10.5px;text-align:center}
+  .tiphint{color:#7a7a86;font-size:10.5px;line-height:1.5;text-align:left;margin-top:8px}
   #varStrip{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;margin-bottom:2px}
   #varStrip .vt, #pinRow .vt{aspect-ratio:1;border:1px solid var(--line);border-radius:6px;overflow:hidden;cursor:pointer;background:#0f0f14;position:relative;transition:transform .1s}
   #varStrip .vt:hover, #pinRow .vt:hover{transform:translateY(-2px)}
@@ -530,7 +531,12 @@
       <div class="scard" data-anchor="look">
         <div class="slab"><b>1</b> Pick a look</div>
         <div class="lookgrid" id="s_looks"></div>
-        <button class="tgl" id="s_more" style="width:100%;margin-top:9px">More looks, stacking &amp; full controls →</button>
+        <button class="bigbtn poster" id="s_poster" style="margin-top:10px" title="One tap: a random stacked, animated poster. Tap again for another.">🎲 Auto poster</button>
+        <div class="mini" style="margin-top:6px">
+          <button class="btn ghost" id="s_shuffle" style="flex:1" title="Reshuffle the current look">⇄ Shuffle</button>
+          <button class="btn ghost" id="s_seed" style="flex:1" title="New random seed">↻ New seed</button>
+        </div>
+        <button class="tgl" id="s_more" style="width:100%;margin-top:8px">More looks, stacking &amp; full controls →</button>
         <div class="row" style="margin-top:12px"><label>Canvas</label>
           <div class="seg" id="s_ratio" style="flex:1">
             <button data-v="0.8" class="on">4:5</button>
@@ -558,6 +564,8 @@
           </div>
           <div class="row"><label>Speed</label><input type="range" id="s_speed" min="0.25" max="3" step="0.05" value="1"><span class="val" id="s_speedv">1.0</span></div>
         </div>
+        <button class="btn ghost weaveBtn" id="s_weave" data-lbl="🧬 Weave into a new design" style="width:100%;margin-top:9px" title="Morph this design into a fresh one, weaving through — a seamless loop. Tap again to reroll the target.">🧬 Weave into a new design</button>
+        <div class="tiphint">Tip: for a still poster, tap <b>Auto poster</b> then turn Animate off.</div>
       </div>
       <div class="scard" data-anchor="export">
         <div class="slab"><b>3</b> Save / Export</div>
@@ -566,14 +574,7 @@
           <button class="btn ghost" id="s_png">PNG ×3</button>
           <button class="btn ghost" id="s_vid">Video</button>
         </div>
-        <button class="bigbtn poster" id="s_poster" style="margin-top:9px">🎲 Auto poster (stacked + animated)</button>
-        <button class="btn ghost" id="s_poster_static" style="width:100%;margin-top:6px" title="Random stacked composition, held still — no motion">🖼 Auto poster (stacked · still)</button>
-        <button class="btn ghost weaveBtn" id="s_weave" data-lbl="🧬 Weave into new" style="width:100%;margin-top:6px" title="Morph the current design into a new one, weaving through — seamless loop. Tap again to reroll the target.">🧬 Weave into new</button>
-        <div class="mini" style="margin-top:8px">
-          <button class="btn ghost" id="s_seed" style="flex:1">↻ New seed</button>
-          <button class="btn ghost" id="s_shuffle" style="flex:1">⇄ Shuffle</button>
-        </div>
-        <div class="foothint" style="text-align:left;margin-top:10px">Want a vertical clip? Tap <b style="color:#ffb0dd">🎬 Reel</b> up top for a 9:16 portrait Morph loop.</div>
+        <div class="tiphint">Animated or weaving? <b>Video</b> bakes the loop. Want vertical? Tap <b style="color:#ffb0dd">🎬 Reel</b> up top for 9:16.</div>
       </div>
       <div class="scard" id="s_galCard" data-anchor="keep" style="display:none">
         <div class="slab"><b>★</b> Your kept pieces</div>
