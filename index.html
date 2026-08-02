@@ -92,6 +92,9 @@
   #s_pinRow .vt .del{position:absolute;top:2px;right:2px;width:17px;height:17px;line-height:16px;text-align:center;border-radius:5px;background:rgba(10,10,14,.72);color:#fff;font-size:11px;border:0;cursor:pointer;opacity:0;transition:opacity .1s;padding:0}
   #s_pinRow .vt:hover .del{opacity:1}
   #s_pinRow .vt .del:hover{background:var(--acc2)}
+  #pinRow .vt .wv,#s_pinRow .vt .wv{position:absolute;top:2px;left:2px;width:19px;height:19px;line-height:18px;text-align:center;border-radius:5px;background:rgba(10,10,14,.72);color:#fff;font-size:11px;border:0;cursor:pointer;opacity:0;transition:opacity .1s;padding:0}
+  #pinRow .vt:hover .wv,#s_pinRow .vt:hover .wv{opacity:1}
+  #pinRow .vt .wv:hover,#s_pinRow .vt .wv:hover{background:var(--acc)}
   #seriesRow{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:8px}
   #seriesRow .vt{aspect-ratio:1;border:1px solid var(--line);border-radius:6px;overflow:hidden;cursor:pointer;background:#0f0f14;position:relative;transition:transform .1s}
   #seriesRow .vt:hover{transform:translateY(-2px)}
@@ -565,6 +568,7 @@
         </div>
         <button class="bigbtn poster" id="s_poster" style="margin-top:9px">🎲 Auto poster (stacked + animated)</button>
         <button class="btn ghost" id="s_poster_static" style="width:100%;margin-top:6px" title="Random stacked composition, held still — no motion">🖼 Auto poster (stacked · still)</button>
+        <button class="btn ghost weaveBtn" id="s_weave" data-lbl="🧬 Weave into new" style="width:100%;margin-top:6px" title="Morph the current design into a new one, weaving through — seamless loop. Tap again to reroll the target.">🧬 Weave into new</button>
         <div class="mini" style="margin-top:8px">
           <button class="btn ghost" id="s_seed" style="flex:1">↻ New seed</button>
           <button class="btn ghost" id="s_shuffle" style="flex:1">⇄ Shuffle</button>
@@ -602,6 +606,7 @@
         <button class="btn" id="footSurprise" style="flex:2;background:var(--acc2);color:#fff;font-weight:700" title="Random stacked composition, auto-animated">🎲 Auto poster</button>
         <button class="btn" id="footPosterStatic" style="flex:1;background:var(--panel2);color:var(--ink);border:1px solid var(--line)" title="Random stacked composition, held still — no motion">🖼 Still</button>
         <button class="btn morphPlayBtn" id="footAnimate" style="flex:1;background:var(--panel2);color:var(--ink);border:1px solid var(--line)">▶ Animate</button>
+        <button class="btn weaveBtn" id="footWeave" data-lbl="🧬 Weave" style="flex:1;background:var(--panel2);color:var(--ink);border:1px solid var(--line)" title="Morph the current design into a new one, weaving through — seamless loop">🧬 Weave</button>
       </div>
       <div class="mini" style="align-items:center;gap:5px">
         <span style="color:var(--dim);font-size:10px;flex:0 0 auto">LOCK</span>
@@ -1740,10 +1745,10 @@ function buildSVG(forExport,animT,opts){
 /* ---------- render into stage ---------- */
 let _renderRAF=0;
 function render(){
-  if(typeof morphPlaying!=='undefined' && morphPlaying) return;   // morph loop owns the stage while playing
+  if((typeof morphPlaying!=='undefined'&&morphPlaying)||(typeof weavePlaying!=='undefined'&&weavePlaying)) return;   // morph/weave loop owns the stage while playing
   if(_renderRAF) return;                         // coalesce bursts into one paint per frame
   _renderRAF=requestAnimationFrame(()=>{ _renderRAF=0;
-    if(typeof morphPlaying!=='undefined' && morphPlaying) return;  // a burst may have started morph before this fired
+    if((typeof morphPlaying!=='undefined'&&morphPlaying)||(typeof weavePlaying!=='undefined'&&weavePlaying)) return;  // a burst may have started morph/weave before this fired
     if(window.csfBeforeRender) window.csfBeforeRender();
     document.getElementById("frameWrap").innerHTML=buildSVG(false, window.CSF_STATIC?0:undefined);
     document.getElementById("seedTag").textContent="seed "+state.seed;
@@ -1958,6 +1963,9 @@ function renderPins(){
       const x=document.createElement('button'); x.className='del'; x.textContent='✕'; x.title='remove';
       x.onclick=(e)=>{ e.stopPropagation(); deletePin(i); };
       t.appendChild(x);
+      const wv=document.createElement('button'); wv.className='wv'; wv.textContent='🧬'; wv.title='weave the current design into this one';
+      wv.onclick=(e)=>{ e.stopPropagation(); if(typeof startWeave==='function') startWeave(pin); };
+      t.appendChild(wv);
       row.appendChild(t);
     });
   });
@@ -2238,6 +2246,7 @@ async function rasterFrame(t,W,H,scale){
   return bmp;
 }
 async function exportWEBM(btn){
+  if(typeof weavePlaying!=='undefined' && weavePlaying) return exportWeave(btn);   // weaving → bake the A→B→A loop
   if(!(state.animSet&&state.animSet.length)&&(!state.animType||state.animType==="none")){ alert("Pick at least one Motion first (Animation section). The video bakes the combined motions; Cycle mode isn't recorded."); return; }
   if(_EXPORTING){ alert("Hold on — an export is already running. Let it finish before starting another."); return; }
   const label=btn?btn.textContent:""; if(btn){btn.textContent="Rendering…";btn.disabled=true;}
@@ -2332,6 +2341,7 @@ function morphLook(obj,base,ph,off){   // oscillate one look's shape dials aroun
   obj.rotate=(base.rotate||0)+6*A*Math.sin(ph+off);
 }
 async function exportMorph(btn){
+  if(typeof weavePlaying!=='undefined' && weavePlaying) return exportWeave(btn);   // weaving → bake the A→B→A loop
   const label=btn?btn.textContent:"";
   const setBtn=t=>{ if(btn){btn.textContent=t;btn.disabled=true;} };
   if(_EXPORTING){ alert("Hold on — an export is already running. Let it finish first."); return; }
@@ -2443,6 +2453,120 @@ function stopMorphPlay(){
   updateMorphBtns(false); syncAllUI(); render(); renderCompList();
 }
 function toggleMorphPlay(){ morphPlaying?stopMorphPlay():startMorphPlay(); }
+
+/* ============ WEAVE: morph the current design INTO another, weaving through ============
+   Three overlaid layers over a shared background: the current design's linework (A) and a
+   target design's linework (B), both flowing via self-running SMIL. Each frame only
+   crossfades their opacity along an A→B→A bounce, so A's lines dissolve as B's emerge (they
+   overlap mid-transition = weave), then return — a seamless loop. Cheap (opacity only; SMIL
+   does the motion) and works for ANY two looks. */
+let weavePlaying=false, _weaveRAF=0, _weaveT0=0, _weaveB=null;
+function _lookLayer(look, prefix, mode, animT){
+  const saved=looksState(true);
+  Object.assign(state, look);
+  const b=markBlock(animT===undefined?null:animT, {});   // null => self-running SMIL (live); numeric => a baked frame (export)
+  const body = mode==='bg' ? `<defs>${b.defs}</defs>${b.bgRect}`
+                           : `<defs>${b.defs}${b.extraDefs}</defs>${b.animStyle}${b.content}`;   // marks only, transparent bg
+  const inner = prefixIds(body, prefix);
+  Object.assign(state, saved);
+  return { inner, W:b.W, H:b.H };
+}
+/* one baked weave frame as a full SVG string: shared bg + A-marks & B-marks at crossfade opacities, numeric surface phase */
+function weaveFrameSVG(A,B,bOp,animT,W,H,scale){
+  const bg=_lookLayer(A,'WBG','bg',null), la=_lookLayer(A,'WA','marks',animT), lb=_lookLayer(B,'WB','marks',animT);
+  const ow=Math.round(W*scale), oh=Math.round(H*scale);
+  return `<svg xmlns="${SVGNS}" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" width="${ow}" height="${oh}">`
+    + bg.inner
+    + `<g opacity="${(1-bOp).toFixed(3)}">${la.inner}</g>`
+    + `<g opacity="${bOp.toFixed(3)}">${lb.inner}</g></svg>`;
+}
+async function rasterSVGString(svg){
+  const url=URL.createObjectURL(new Blob([svg],{type:"image/svg+xml"}));
+  const img=new Image();
+  await new Promise((res)=>{img.onload=res;img.onerror=res;img.src=url;});
+  let bmp; try{ bmp=await createImageBitmap(img); }catch(e){ bmp=img; }
+  URL.revokeObjectURL(url); return bmp;
+}
+async function exportWeave(btn){
+  if(!_weaveB){ alert("Start a Weave first (tap 🧬), then export."); return; }
+  if(_EXPORTING){ alert("Hold on — an export is already running. Let it finish first."); return; }
+  const label=btn?btn.textContent:""; const setBtn=t=>{ if(btn){btn.textContent=t;btn.disabled=true;} };
+  _EXPORTING=true; REELING=true;
+  const A=looksState(true), B=JSON.parse(JSON.stringify(_weaveB));
+  if(weavePlaying){ weavePlaying=false; cancelAnimationFrame(_weaveRAF); updateWeaveBtns(false); }
+  try{
+    if(!window.MediaRecorder) throw new Error("MediaRecorder unavailable");
+    if(!(state.animSet&&state.animSet.length)){ state.animSet=['liquid']; state.animType='liquid'; }
+    const H=1000,W=Math.round(1000*state.ratio),fps=24, total=Math.max(48,Math.min(240,Math.round((state.morphSecs||6)*2*fps)));   // full A→B→A cycle
+    const {OW,OH,RS}=reelOutSize(W,H,total);
+    setBtn("Baking…");
+    const frames=[];
+    for(let i=0;i<total;i++){
+      const p=i/total, bOp=0.5-0.5*Math.cos(2*Math.PI*p), t=(p*2)%1;   // seamless: opacity bounce A→B→A, surface loops twice
+      frames.push(await rasterSVGString(weaveFrameSVG(A,B,bOp,t,W,H,RS)));
+      if(i%12===0) setBtn(`Baking ${Math.round(p*100)}%…`);
+    }
+    const cv=document.createElement("canvas");cv.width=OW;cv.height=OH;const ctx=cv.getContext("2d");
+    const stream=cv.captureStream(fps);
+    const {mime,ext}=pickVideoMime();
+    const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:16000000});
+    const chunks=[];rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
+    const done=new Promise(r=>rec.onstop=r);
+    setBtn("Recording…"); rec.start();
+    for(let loop=0;loop<2;loop++) for(let i=0;i<total;i++){ ctx.clearRect(0,0,OW,OH); ctx.drawImage(frames[i],0,0,OW,OH); await new Promise(r=>setTimeout(r,1000/fps)); }
+    rec.stop(); await done;
+    frames.forEach(f=>{ try{ f.close&&f.close(); }catch(e){} });
+    download(`cyber-sigil-weave-${state.seed}-${OW}x${OH}.${ext}`, new Blob(chunks,{type:mime.split(';')[0]}));
+  }catch(e){ alert("Weave export failed — this browser may not support video recording. Try Chrome/Edge. ("+e.message+")"); }
+  finally{ _EXPORTING=false; REELING=false; }
+  if(btn){btn.textContent=label;btn.disabled=false;}
+}
+function makeWeaveTarget(){
+  const cur=looksState(true), wasR=REELING; REELING=true;
+  try{ if(typeof randomizeEverything==='function') randomizeEverything(); }catch(e){}   // fresh look, respects Keep locks
+  const B=looksState(true);
+  Object.assign(state,cur); REELING=wasR;
+  return B;
+}
+function updateWeaveBtns(on){ document.querySelectorAll('.weaveBtn').forEach(b=>{ b.textContent=on?'⏸ Stop weave':(b.dataset.lbl||'🧬 Weave into new'); b.classList.toggle('on',on); }); }
+function startWeave(lookB){
+  if(typeof stopMorphPlay==='function' && morphPlaying) stopMorphPlay();
+  if(weavePlaying) stopWeave();
+  if(_renderRAF){ cancelAnimationFrame(_renderRAF); _renderRAF=0; }
+  const A=looksState(true);
+  _weaveB = lookB ? JSON.parse(JSON.stringify(lookB)) : makeWeaveTarget();
+  if(!(state.animSet&&state.animSet.length)){ state.animSet=['liquid']; state.animType='liquid'; }
+  weavePlaying=true; _weaveT0=performance.now(); updateWeaveBtns(true);
+  const fw=document.getElementById('frameWrap');
+  const bg=_lookLayer(A,'WBG_','bg'), la=_lookLayer(A,'WA_','marks'), lb=_lookLayer(_weaveB,'WB_','marks');
+  const head=`xmlns="${SVGNS}" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${la.W} ${la.H}" preserveAspectRatio="xMidYMid meet"`;
+  const abs=`style="position:absolute;inset:0;width:100%;height:100%"`;
+  fw.innerHTML=`<div class="weaveStage" style="position:relative;display:inline-block;line-height:0">`
+    +`<svg id="weaveBg" ${head}>${bg.inner}</svg>`
+    +`<svg id="weaveA" ${head} ${abs}>${la.inner}</svg>`
+    +`<svg id="weaveB" ${head} ${abs}>${lb.inner}</svg></div>`;
+  let ea=document.getElementById('weaveA'), eb=document.getElementById('weaveB');
+  const loop=()=>{
+    if(!weavePlaying) return;
+    _weaveRAF=requestAnimationFrame(loop);
+    if(!ea||!ea.isConnected){ ea=document.getElementById('weaveA'); eb=document.getElementById('weaveB'); if(!ea) return; }
+    const secs=Math.max(2,(state.morphSecs||6))*2;      // full A→B→A cycle length
+    const p=(((performance.now()-_weaveT0)/1000/secs)%1);
+    const bOp=0.5-0.5*Math.cos(2*Math.PI*p);            // 0→1→0 bounce, seamless
+    ea.style.opacity=(1-bOp).toFixed(3);
+    eb.style.opacity=bOp.toFixed(3);
+  };
+  _weaveRAF=requestAnimationFrame(loop);
+}
+function stopWeave(){
+  if(!weavePlaying) return;
+  weavePlaying=false; cancelAnimationFrame(_weaveRAF);
+  updateWeaveBtns(false);
+  if(typeof render==='function') render();
+}
+function toggleWeave(){ weavePlaying?stopWeave():startWeave(); }
+/* one tap: reroll the weave target while it's playing */
+function reweave(){ if(weavePlaying){ _weaveT0=performance.now(); startWeave(); } else { startWeave(); } }
 /* one tap: random stacked composition, animated */
 function surprisePoster(){ randomComp(); startMorphPlay(); }
 /* one tap: random stacked composition, held STILL (no motion) */
@@ -2723,6 +2847,7 @@ function init(){
   { const _ap=document.getElementById("animPlay"); if(_ap) _ap.onclick=toggleMorphPlay; }
   document.getElementById("footSurprise").onclick=surprisePoster;
   { const _fps=document.getElementById("footPosterStatic"); if(_fps) _fps.onclick=staticPoster; }
+  { const _fw=document.getElementById("footWeave"); if(_fw) _fw.onclick=reweave; }
   document.getElementById("footAnimate").onclick=toggleMorphPlay;
   document.getElementById("festModal").onclick=festivalFormat;
   seg("alignSeg","alignMode",()=>applyAlign());
@@ -2947,6 +3072,7 @@ init();
   document.getElementById("s_shuffle").onclick=function(){ clearLookHi(); if(typeof randomizeAll==="function") randomizeAll(); else randomizeEverything(); syncShell(); };
   document.getElementById("s_poster").onclick=function(){ clearLookHi(); if(typeof surprisePoster==="function") surprisePoster(); else if(typeof randomComp==="function") randomComp(); syncShell(); };
   var _sps=document.getElementById("s_poster_static"); if(_sps) _sps.onclick=function(){ clearLookHi(); if(typeof staticPoster==="function") staticPoster(); else if(typeof randomComp==="function") randomComp(); syncShell(); };
+  var _sw=document.getElementById("s_weave"); if(_sw) _sw.onclick=function(){ if(typeof reweave==="function") reweave(); };
 
   /* festival wiring — uses the master's festival format + Morph-clip export */
   function enterFestival(reset){
@@ -3258,7 +3384,7 @@ init();
   function stripImg(o){ var c={}; for(var k in o){ if(k==='imgData') continue; c[k]=o[k]; } return c; }
   function save(){
     try{
-      if(typeof morphPlaying!=='undefined' && morphPlaying) return;   // never persist a morph-transient frame
+      if((typeof morphPlaying!=='undefined'&&morphPlaying)||(typeof weavePlaying!=='undefined'&&weavePlaying)) return;   // never persist a morph/weave-transient frame
       if(typeof looksState!=='function') return;
       localStorage.setItem(LOOK_KEY, JSON.stringify(stripImg(looksState(false))));
       var comp=(typeof COMP!=='undefined'&&Array.isArray(COMP))?COMP.map(stripImg):[];
