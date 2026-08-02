@@ -2013,8 +2013,8 @@ function randomComp(){
     if(state.finish==='neon'){ state.glow=true; state.glowColor=pal[i%2]; }
     const depth = K>1 ? i/(K-1) : 0;
     state.markScale=+(1.5-0.85*depth+randF(-0.08,0.08)).toFixed(2);     // back big → front small
-    state.offX=randInt(-14,14); state.offY=randInt(-24,24); state.rotate=0;   // marks sit upright (no rotation)
-    if(state.alignMode==='center'){ state.offX=0; state.offY=0; } else if(state.alignMode==='vaxis'){ state.offX=0; }   // alignment
+    state.offX=0; state.offY=0; state.rotate=0;   // centred + upright: every mark starts at x/y 0, no tilt, no scatter
+    state.alignMode='center';   // keep the stack cleanly centred
     state.grain=0; state.glitch=0;
     if(!(state.animSet&&state.animSet.length)){ const m=pick(['liquid','morph','ripple','goo']); state.animSet=[m]; state.animType=m; }  // seamless-looping motions
     looks.push(looksState(true));
