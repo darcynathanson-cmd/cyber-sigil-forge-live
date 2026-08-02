@@ -1454,7 +1454,10 @@ function buildLayerDefs(){
   if(state.twoTone)
     d+=`<filter id="innerTone" x="-10%" y="-10%" width="120%" height="120%"><feMorphology in="SourceAlpha" operator="erode" radius="${state.twoToneInset}" result="ee"/><feFlood flood-color="${state.twoToneColor}"/><feComposite in2="ee" operator="in"/></filter>`;
   if(state.pattern!=="none"){
-    d+=`<filter id="floodWhite"><feFlood flood-color="#ffffff"/><feComposite in2="SourceAlpha" operator="in"/></filter>`;
+    // Mask the pattern to the mark, but ERODE inward ~⅖ of a tile and softly feather the edge so
+    // dots aren't sliced into half-dots at the silhouette — they pull in and fade instead (no clipping).
+    const _pe=(state.patScale*0.42).toFixed(1), _pb=(state.patScale*0.16).toFixed(1);
+    d+=`<filter id="floodWhite" x="-12%" y="-12%" width="124%" height="124%"><feFlood flood-color="#ffffff"/><feComposite in2="SourceAlpha" operator="in" result="fw"/><feMorphology in="fw" operator="erode" radius="${_pe}"/><feGaussianBlur stdDeviation="${_pb}"/></filter>`;
     d+=patDef("pat",state.pattern,state.patColor,state.patScale);
   }
   return d;
