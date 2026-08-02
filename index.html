@@ -20,8 +20,10 @@
            repeating-linear-gradient(0deg,#0d0d12 0 39px,#101017 39px 40px),
            repeating-linear-gradient(90deg,#0d0d12 0 39px,#101017 39px 40px);
          background-blend-mode:normal;}
-  #frameWrap{box-shadow:0 20px 80px rgba(0,0,0,.6);max-width:88%;max-height:88%;transition:transform .15s}
-  #frameWrap svg{display:block;width:min(78vh,52vw);height:auto;max-width:100%;max-height:84vh}
+  #stage::before{content:"";position:absolute;inset:0;pointer-events:none;z-index:0;
+    background:radial-gradient(ellipse 44% 54% at 50% 47%, rgba(124,252,0,.055), rgba(255,79,176,.045) 42%, transparent 72%);}
+  #frameWrap{position:relative;z-index:1;box-shadow:0 20px 80px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.05);max-width:88%;max-height:90%;transition:transform .15s}
+  #frameWrap svg{display:block;width:min(80vh,54vw);height:auto;max-width:100%;max-height:86vh}
   #stageBadge{position:absolute;left:16px;top:14px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
   #seedTag{position:absolute;right:16px;top:14px;font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums}
   #hint{position:absolute;left:16px;bottom:12px;font-size:11px;color:#55555f}
@@ -86,6 +88,7 @@
   .mini{display:flex;gap:8px}
   .mini .btn{padding:9px 8px;font-weight:500;font-size:11.5px}
   .foothint{color:#55555f;font-size:10.5px;text-align:center}
+  .subhint{color:#8a8a96;font-size:10px;text-align:center;margin:0 0 5px;line-height:1.35}
   .tiphint{color:#7a7a86;font-size:10.5px;line-height:1.5;text-align:left;margin-top:8px}
   #varStrip{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;margin-bottom:2px}
   #varStrip .vt, #pinRow .vt{aspect-ratio:1;border:1px solid var(--line);border-radius:6px;overflow:hidden;cursor:pointer;background:#0f0f14;position:relative;transition:transform .1s}
@@ -119,13 +122,16 @@
   #compRow .vt{aspect-ratio:1;border:1px solid var(--line);border-radius:6px;overflow:hidden;cursor:pointer;background:#0f0f14;position:relative;transition:transform .1s}
   #compRow .vt:hover{transform:translateY(-2px);border-color:var(--acc)}
   #compRow .vt svg{width:100%;height:100%;display:block}
-  #compRow .vt .del,#compRow .vt .mv{position:absolute;width:15px;height:15px;line-height:14px;text-align:center;border-radius:4px;
+  #compRow .vt .del,#compRow .vt .mv,#compRow .vt .edit{position:absolute;width:15px;height:15px;line-height:14px;text-align:center;border-radius:4px;
      background:rgba(10,10,14,.75);color:#fff;font-size:10px;border:0;cursor:pointer;opacity:0;transition:opacity .1s;padding:0}
   #compRow .vt .del{top:1px;right:1px}
   #compRow .vt .mv.up{top:1px;left:1px}
   #compRow .vt .mv.dn{top:1px;left:18px}
-  #compRow .vt:hover .del,#compRow .vt:hover .mv{opacity:1}
+  #compRow .vt .edit{bottom:1px;right:1px}
+  #compRow .vt:hover .del,#compRow .vt:hover .mv,#compRow .vt:hover .edit{opacity:1}
   #compRow .vt .del:hover{background:var(--acc2)} #compRow .vt .mv:hover{background:var(--acc);color:#0b0b0e}
+  #compRow .vt .edit:hover{background:var(--acc);color:#0b0b0e}
+  #compRow .vt.sel{border-color:var(--acc);box-shadow:0 0 0 2px rgba(124,252,0,.35)}
   #shuffle{width:100%;display:flex;align-items:center;justify-content:center;gap:7px}
 </style>
 <style id="embedded-fonts">
@@ -232,8 +238,7 @@
       <div class="sec">
         <h2>Compose · stack layers</h2>
         <button class="btn primary" id="addComp" style="width:100%">⊞ Add current as a layer</button>
-        <button class="btn pk" id="randComp" style="width:100%;margin-top:6px">🎲 Random comp (auto-stack)</button>
-        <button class="btn morphPlayBtn" id="previewMorph" style="width:100%;margin-top:6px;background:var(--acc2);color:#fff">▶ Animate</button>
+        <button class="btn pk" id="randComp" style="width:100%;margin-top:6px" title="Build a fresh random multi-layer stack">🎲 Random comp (auto-stack)</button>
         <div class="row" style="margin-top:8px"><label>Align</label>
           <div class="seg" id="alignSeg" style="flex:1">
             <button data-v="free" class="on">Free</button>
@@ -246,7 +251,6 @@
         <div class="foothint" style="text-align:left;margin-top:2px">Controls the 🎬 Morph clip export (Export menu): how much it contorts &amp; the loop length.</div>
         <div id="compRow"></div>
         <div class="foothint" id="compHint" style="text-align:left;margin-top:5px">No layers yet. Build one element (say a frame), Add it, then design the next (a symbol) — they stack into one asset. Each layer keeps its own finish, motion &amp; position; your current design sits on top. Click a layer to edit it.</div>
-        <button class="btn ghost" id="undoComp" style="width:100%;margin-top:6px;display:none" title="Undo the last stack change (add / remove / random comp) — ⌘Z / Ctrl+Z">⤺ Undo stack change</button>
         <button class="btn ghost" id="clearComp" style="width:100%;margin-top:6px;display:none">Clear stack</button>
       </div>
       <div class="sec">
@@ -514,7 +518,7 @@
         <div class="row" style="align-items:flex-start;margin-top:6px"><label style="margin-top:5px">Try a motion</label>
           <div style="flex:1">
             <div id="motionStrip"></div>
-            <button class="btn ghost" id="surpriseMotion" style="width:100%;margin-top:6px">🎲 Surprise motion</button>
+            <button class="btn ghost" id="surpriseMotion" style="width:100%;margin-top:6px" title="Pick a random surface-motion flavour (boil / goo / liquid / ripple…)">🎲 Random motion style</button>
           </div>
         </div>
         <div class="row"><label>Speed</label><input type="range" id="animSpeed" min="0.25" max="3" step="0.05" value="1"><span class="val" id="animSpeedv">1.0</span></div>
@@ -526,101 +530,42 @@
       </div>
     </div>
 
-    <div id="simplePanel">
-      <div class="scard" data-anchor="look">
-        <div class="slab"><b>1</b> Pick a look</div>
-        <div class="lookgrid" id="s_looks"></div>
-        <button class="bigbtn poster" id="s_poster" style="margin-top:10px" title="One tap: a random stacked, animated poster. Tap again for another.">🎲 Auto poster</button>
-        <div class="mini" style="margin-top:6px">
-          <button class="btn ghost" id="s_shuffle" style="flex:1" title="Reshuffle the current look">⇄ Shuffle</button>
-          <button class="btn ghost" id="s_seed" style="flex:1" title="New random seed">↻ New seed</button>
-        </div>
-        <button class="tgl" id="s_more" style="width:100%;margin-top:8px">More looks, stacking &amp; full controls →</button>
-        <div class="row" style="margin-top:12px"><label>Canvas</label>
-          <div class="seg" id="s_ratio" style="flex:1">
-            <button data-v="0.8" class="on">4:5</button>
-            <button data-v="0.667">Poster</button>
-            <button data-v="0.5625">9:16</button>
-          </div>
-        </div>
-      </div>
-      <div class="scard" data-anchor="move">
-        <div class="slab"><b>2</b> Make it move</div>
-        <div class="swatchrow" style="margin:0"><label>Animate</label>
-          <button class="tgl" id="s_anim" style="flex:1">Off</button>
-        </div>
-        <div id="s_animOpts" style="display:none">
-          <div class="chips" id="s_animChips" style="margin-top:8px">
-            <button data-v="boil" class="on">Boil</button>
-            <button data-v="goo">Goo</button>
-            <button data-v="liquid">Liquid</button>
-            <button data-v="morph">Morph</button>
-            <button data-v="ripple">Ripple</button>
-            <button data-v="shimmer">Shimmer</button>
-            <button data-v="pulse">Pulse</button>
-            <button data-v="spin">Spin</button>
-            <button data-v="flicker">Flicker</button>
-          </div>
-          <div class="row"><label>Speed</label><input type="range" id="s_speed" min="0.25" max="3" step="0.05" value="1"><span class="val" id="s_speedv">1.0</span></div>
-        </div>
-        <button class="btn ghost weaveBtn" id="s_weave" data-lbl="🌀 Morph in place" style="width:100%;margin-top:9px" title="Continuously bloom & reconfigure this design in place — a seamless loop. Tap again to stop.">🌀 Morph in place</button>
-        <div class="tiphint">Tip: for a still poster, tap <b>Auto poster</b> then turn Animate off.</div>
-      </div>
-      <div class="scard" data-anchor="export">
-        <div class="slab"><b>3</b> Save / Export</div>
-        <div class="mini">
-          <button class="btn ghost" id="s_svg">SVG</button>
-          <button class="btn ghost" id="s_png">PNG ×3</button>
-          <button class="btn ghost" id="s_vid">Video</button>
-        </div>
-        <div class="tiphint">Animated or weaving? <b>Video</b> bakes the loop. Want vertical? Tap <b style="color:#ffb0dd">🎬 Reel</b> up top for 9:16.</div>
-      </div>
-      <div class="scard" id="s_galCard" data-anchor="keep" style="display:none">
-        <div class="slab"><b>★</b> Your kept pieces</div>
-        <div id="s_pinRow"></div>
-        <div class="foothint" style="text-align:left;margin-top:8px">Tap <b>＋ Save</b> (or press <b>S</b>) to keep the current piece. Click a tile to load it back · ✕ removes it.</div>
-      </div>
-    </div>
 
-    <div id="festivalPanel">
-      <div class="scard">
-        <div class="slab" style="color:#ffb0dd"><b>🎬</b> Reel clip</div>
-        <div class="fspec">Sets <b>9:16 portrait</b> &amp; a <b>seamless loop</b>. Pick a look, then export the Morph clip — a vertical video for Reels, Stories or TikTok.</div>
-      </div>
-      <div class="scard" data-anchor="look">
-        <div class="slab"><b>1</b> Pick a look</div>
-        <div class="lookgrid" id="f_looks"></div>
-        <button class="tgl" id="f_random" style="width:100%;margin-top:9px">🎲 Random comp (auto-stack)</button>
-      </div>
-      <div class="scard" data-anchor="export">
-        <div class="slab"><b>2</b> Save clip</div>
-        <button class="bigbtn fest" id="f_export">🎬 Export my Reel clip</button>
-        <div class="foothint" id="f_status" style="text-align:left;margin-top:9px">Portrait Morph clip — seamless vertical loop for Reels / Stories / TikTok.</div>
-      </div>
-    </div>
 
     <div id="foot">
 
       <div id="varStrip"></div>
-      <div class="mini">
-        <button class="btn" id="footSurprise" style="flex:2;background:var(--acc2);color:#fff;font-weight:700" title="Random stacked composition, auto-animated">🎲 Auto poster</button>
-        <button class="btn" id="footPosterStatic" style="flex:1;background:var(--panel2);color:var(--ink);border:1px solid var(--line)" title="Random stacked composition, held still — no motion">🖼 Still</button>
-        <button class="btn morphPlayBtn" id="footAnimate" style="flex:1;background:var(--panel2);color:var(--ink);border:1px solid var(--line)">▶ Animate</button>
-        <button class="btn weaveBtn" id="footWeave" data-lbl="🌀 Morph" style="flex:1;background:var(--panel2);color:var(--ink);border:1px solid var(--line)" title="Continuously bloom & reconfigure the current design in place — seamless loop">🌀 Morph</button>
+
+      <!-- MOTION: one segmented control (Still / Animate / Morph) -->
+      <div class="mini" style="align-items:center;gap:6px;margin-bottom:4px">
+        <span style="color:var(--dim);font-size:10px;flex:0 0 auto">MOTION</span>
+        <div class="seg" id="motionSeg" role="group" aria-label="Motion mode" style="flex:1">
+          <button id="footPosterStatic" data-mseg="still" title="Hold the design still — no motion">🖼 Still</button>
+          <button class="morphPlayBtn" id="footAnimate" data-mseg="animate" title="Surface ripples in place — tap to play or pause">▶ Animate</button>
+          <button class="weaveBtn" id="footWeave" data-mseg="morph" data-lbl="🌀 Morph" title="The whole shape blooms &amp; reconfigures — seamless loop">🌀 Morph</button>
+        </div>
       </div>
+      <div class="subhint">Animate = surface ripples in place · Morph = the whole shape blooms &amp; reconfigures</div>
+
+      <!-- KEEP locks (respected by Shuffle) -->
       <div class="mini" style="align-items:center;gap:5px">
-        <span style="color:var(--dim);font-size:10px;flex:0 0 auto">LOCK</span>
-        <button class="tgl" data-lock="finish" style="flex:1;padding:5px 2px">Finish</button>
-        <button class="tgl" data-lock="colors" style="flex:1;padding:5px 2px">Color</button>
-        <button class="tgl" data-lock="layout" style="flex:1;padding:5px 2px">Layout</button>
-        <button class="tgl" data-lock="fx" style="flex:1;padding:5px 2px">FX</button>
+        <span style="color:var(--dim);font-size:10px;flex:0 0 auto">KEEP</span>
+        <button class="tgl" data-lock="finish" style="flex:1;padding:5px 2px" title="Keep the current finish when you Shuffle">Finish</button>
+        <button class="tgl" data-lock="colors" style="flex:1;padding:5px 2px" title="Keep the current colours when you Shuffle">Color</button>
+        <button class="tgl" data-lock="layout" style="flex:1;padding:5px 2px" title="Keep the current layout when you Shuffle">Layout</button>
+        <button class="tgl" data-lock="fx" style="flex:1;padding:5px 2px" title="Keep the current FX when you Shuffle">FX</button>
+      </div>
+
+      <!-- VARIATION -->
+      <div class="mini">
+        <button class="btn primary" id="shuffle" style="flex:2" title="Roll a new look — respects the KEEP locks above  (R)">🎲 Shuffle</button>
+        <button class="btn ghost" id="reseed" style="flex:1" title="New random seed — a small shape nudge  (Space)">New seed</button>
       </div>
       <div class="mini">
-        <button class="btn primary" id="randAll" style="flex:1">🎲 Randomize all</button>
-        <button class="btn pk" id="shuffle" style="flex:1">⇄ Shuffle</button>
+        <button class="btn pk" id="footSurprise" style="flex:2" title="One tap: a random stacked, animated poster — tap again for another">✨ Surprise me</button>
+        <button class="btn ghost" id="randAll" style="flex:1;font-size:10.5px" title="Shuffle everything, ignoring the KEEP locks">Shuffle · ignore locks</button>
       </div>
       <div class="mini">
-        <button class="btn ghost" id="reseed">New seed</button>
         <button class="tgl" id="transToggle" style="flex:1">Transparent BG: off</button>
       </div>
       <div class="mini">
@@ -631,50 +576,6 @@
   </aside>
 </div>
 
-<!-- ===================== SIMPLE MODE (canvas-first) ===================== -->
-<div id="simpleBar">
-  <button class="sbtn festBtn" id="festBar" title="Set 9:16 portrait format for a vertical loop">🎬 Reel</button>
-  <button class="sbtn" id="simpleGuides" title="Show poster margin & thirds guides (screen only)">▦ Guides</button>
-  <button class="sbtn" id="simplePin">＋ Save</button>
-  <button class="sbtn" id="toFullBtn" title="Open the full editor with every control">⤢ Full editor</button>
-</div>
-<div id="simpleDock">
-  <div class="dhint">Tap <b>🎲 Auto poster</b> for an instant animated stack — or build your own: look · Shuffle · Motion · Export <button id="openGuide" title="Show the quick guide">? Guide</button></div>
-  <div id="dockPresets"></div>
-  <div id="dockRow">
-    <button class="dshuffle" id="dockSurprise" title="Random stacked composition, auto-animated — tap again for a new one" style="background:var(--acc2);color:#fff">🎲 Auto poster</button>
-    <button class="dshuffle alt morphPlayBtn" id="dockAnimate" title="Play / pause the morph animation">▶ Animate</button>
-    <button class="dshuffle" id="dockShuffle" title="Roll a new variation (respects what you Keep)">⟳ Shuffle</button>
-    <button class="dchip" id="dockSeed" title="New random shape only">⚲ Shape</button>
-    <div class="dexp">
-      <button class="dshuffle alt" id="dockMotion" title="Add or change animation">◈ Motion ▾</button>
-      <div id="dockMotionMenu"></div>
-    </div>
-    <div class="dgroup" id="dockKeep">
-      <span class="dlbl">KEEP</span>
-      <button class="dchip" data-lock="colors">Palette</button>
-      <button class="dchip" data-lock="finish">Finish</button>
-      <button class="dchip" data-lock="layout">Layout</button>
-    </div>
-    <div class="dgroup" id="dockRatio">
-      <span class="dlbl">SIZE</span>
-      <button class="dchip" data-r="0.8">4:5</button>
-      <button class="dchip" data-r="0.667">Poster</button>
-      <button class="dchip" data-r="0.5625">9:16</button>
-    </div>
-    <div class="dexp">
-      <button class="dshuffle alt" id="dockExport">⭳ Export ▾</button>
-      <div id="dockExpMenu">
-        <button id="dExpSvg">SVG (vector)</button>
-        <button id="dExpPng">PNG ×3</button>
-        <button id="dExpWebm">WEBM (this motion)</button>
-        <button id="dReelMorph">🎬 Morph clip (this design)</button>
-        <button id="dReelMotions">🎬 Reel · all motions</button>
-        <button id="dReelVariety">🎬 Reel · variety mix</button>
-      </div>
-    </div>
-  </div>
-</div>
 <style>
   #brand{position:relative}
   #toSimpleBtn{position:absolute;top:12px;right:14px;background:var(--panel2);border:1px solid var(--line);
@@ -2085,10 +1986,12 @@ function renderCompList(){
   COMP.forEach((layer,i)=>{
     Object.assign(state,layer); state.ratio=cur.ratio;
     const t=document.createElement('div'); t.className='vt'; t.innerHTML=buildSVG(false,null,{tile:true});
-    t.title='click to edit this layer (removes it from the stack)';
-    t.onclick=()=>{ Object.assign(state,COMP[i]); COMP.splice(i,1); syncAllUI(); renderCompList(); render(); refreshStrip(); };
+    t.title='Layer '+(i+1)+' — click to select · ✎ edit · ✕ remove · ↑↓ reorder';
+    t.onclick=()=>{ row.querySelectorAll('.vt.sel').forEach(x=>x.classList.remove('sel')); t.classList.add('sel');
+                    const hh=document.getElementById('compHint'); if(hh) hh.textContent='Layer '+(i+1)+' selected — ✎ Edit pulls it up to tweak (removes it from the stack) · ✕ removes it · ↑↓ reorder.'; };
     const mk=(cls,txt,ttl,fn)=>{ const b=document.createElement('button'); b.className=cls; b.textContent=txt; b.title=ttl; b.onclick=(e)=>{e.stopPropagation();fn();}; return b; };
-    t.appendChild(mk('del','✕','remove layer',()=>removeComp(i)));
+    t.appendChild(mk('del','✕','remove this layer',()=>removeComp(i)));
+    t.appendChild(mk('edit','✎','edit this layer — pulls it up into the current design (removes it from the stack)',()=>{ Object.assign(state,COMP[i]); COMP.splice(i,1); syncAllUI(); renderCompList(); render(); refreshStrip(); }));
     t.appendChild(mk('mv up','↑','move up (behind→front)',()=>moveComp(i,-1)));
     t.appendChild(mk('mv dn','↓','move down',()=>moveComp(i,1)));
     row.appendChild(t);
@@ -2437,7 +2340,12 @@ async function exportMorph(btn){
 
 /* ---- LIVE morph playback: watch the current design/stack morph on the canvas ---- */
 let morphPlaying=false, _morphRAF=0, _morphHome=null, _morphComp=null, _morphT0=0;
-function updateMorphBtns(on){ document.querySelectorAll('.morphPlayBtn').forEach(b=>{ b.textContent=on?'⏸ Stop':'▶ Animate'; b.classList.toggle('on',on); }); }
+function syncMotionSeg(){ /* segmented [Still·Animate·Morph]: exactly one 'on'. Animate/Morph get 'on' from update*Btns; Still is 'on' when no loop runs. */
+  var mp=(typeof morphPlaying!=='undefined'&&morphPlaying);
+  var wp=(typeof weavePlaying!=='undefined'&&weavePlaying);
+  var s=document.getElementById('footPosterStatic'); if(s) s.classList.toggle('on', !mp && !wp);
+}
+function updateMorphBtns(on){ document.querySelectorAll('.morphPlayBtn').forEach(b=>{ b.textContent=on?'⏸ Stop':'▶ Animate'; b.classList.toggle('on',on); }); syncMotionSeg(); }
 /* ---- morph-play render split (task #12: smooth heavy stacks) ----
    The stacked composition layers are the expensive part: rebuilding + reparsing
    every layer's geometry each frame drops heavy stacks to ~4fps. Instead we build
@@ -2573,7 +2481,7 @@ async function exportWeave(btn){
   syncAllUI(); renderCompList(); render(); refreshStrip();
   if(btn){btn.textContent=label;btn.disabled=false;}
 }
-function updateWeaveBtns(on){ document.querySelectorAll('.weaveBtn').forEach(b=>{ b.textContent=on?'⏸ Stop morph':(b.dataset.lbl||'🌀 Morph'); b.classList.toggle('on',on); }); }
+function updateWeaveBtns(on){ document.querySelectorAll('.weaveBtn').forEach(b=>{ b.textContent=on?'⏸ Stop morph':(b.dataset.lbl||'🌀 Morph'); b.classList.toggle('on',on); }); syncMotionSeg(); }
 function startWeave(lookB){
   if(typeof stopMorphPlay==='function' && morphPlaying) stopMorphPlay();
   if(weavePlaying) stopWeave();
@@ -2631,71 +2539,9 @@ function festivalFormat(){
 }
 
 /* init */
-/* ===================== SIMPLE MODE ===================== */
-function buildDockPresets(){
-  const row=document.getElementById('dockPresets'); if(!row) return;
-  PRESETS.forEach(p=>{
-    const b=document.createElement('button'); b.className='dpreset';
-    b.innerHTML=`<span class="dot" style="background:${p.dot}"></span>${p.name}`;
-    b.onclick=()=>applyPreset(p);
-    row.appendChild(b);
-  });
-}
 function syncDock(){
   document.querySelectorAll('#dockKeep .dchip').forEach(b=>b.classList.toggle('on',!!state.locks[b.dataset.lock]));
   document.querySelectorAll('#dockRatio .dchip').forEach(b=>b.classList.toggle('on', +b.dataset.r===+state.ratio));
-}
-function setMode(m,persist){
-  document.body.classList.toggle('simple', m==='simple');
-  if(persist!==false){ try{ localStorage.setItem('csf_mode',m); }catch(e){} }
-  syncDock();
-  if(m!=='simple' && typeof refreshMotionStrip==='function') refreshMotionStrip(true);   // build strip when entering Full
-  if(typeof positionGuides==='function') positionGuides();                               // canvas size changes with mode
-}
-function initMode(){
-  let m='simple'; try{ m=localStorage.getItem('csf_mode')||'simple'; }catch(e){}
-  setMode(m,false);
-}
-function buildSimpleDock(){
-  buildDockPresets();
-  document.getElementById('dockShuffle').onclick=randomizeEverything;   // big Shuffle — respects Keep locks
-  document.getElementById('dockSeed').onclick=()=>{ state.seed=randInt(1,999999); render(); refreshStrip(); };
-  document.querySelectorAll('#dockKeep .dchip').forEach(b=>b.onclick=()=>{
-    const k=b.dataset.lock; state.locks[k]=!state.locks[k];
-    b.classList.toggle('on',state.locks[k]);
-    document.querySelectorAll('#foot [data-lock="'+k+'"]').forEach(x=>x.classList.toggle('on',state.locks[k]));
-  });
-  document.querySelectorAll('#dockRatio .dchip').forEach(b=>b.onclick=()=>{
-    state.ratio=+b.dataset.r; segSet('ratioSeg',state.ratio); syncDock(); render(); refreshStrip();
-  });
-  document.getElementById('simplePin').onclick=pinCurrent;
-  document.getElementById('toFullBtn').onclick=()=>setMode('advanced');
-  const ts=document.getElementById('toSimpleBtn'); if(ts) ts.onclick=()=>setMode('simple');
-  const menu=document.getElementById('dockExpMenu');
-  document.getElementById('dockExport').onclick=e=>{ e.stopPropagation(); menu.classList.toggle('open'); };
-  menu.addEventListener('click',e=>e.stopPropagation());
-  document.addEventListener('click',()=>menu.classList.remove('open'));
-  document.getElementById('dExpSvg').onclick=()=>{ menu.classList.remove('open'); exportSVG(); };
-  document.getElementById('dExpPng').onclick=()=>{ menu.classList.remove('open'); exportPNG(3); };
-  document.getElementById('dExpWebm').onclick=()=>{ menu.classList.remove('open'); exportWEBM(document.getElementById('dockExport')); };
-  document.getElementById('dockAnimate').onclick=toggleMorphPlay;
-  document.getElementById('dockSurprise').onclick=surprisePoster;
-  document.getElementById('festBar').onclick=festivalFormat;
-  document.getElementById('dReelMorph').onclick=()=>{ menu.classList.remove('open'); exportMorph(document.getElementById('dockExport')); };
-  document.getElementById('dReelMotions').onclick=()=>{ menu.classList.remove('open'); exportReel('motions',document.getElementById('dockExport')); };
-  document.getElementById('dReelVariety').onclick=()=>{ menu.classList.remove('open'); exportReel('variety',document.getElementById('dockExport')); };
-  // motion menu
-  buildMotionMenu();
-  const mmenu=document.getElementById('dockMotionMenu');
-  document.getElementById('dockMotion').onclick=e=>{ e.stopPropagation(); markMotionMenu(); mmenu.classList.toggle('open'); menu.classList.remove('open'); };
-  mmenu.addEventListener('click',e=>e.stopPropagation());
-  document.addEventListener('click',()=>mmenu.classList.remove('open'));
-  // guide
-  document.getElementById('openGuide').onclick=showGuide;
-  document.getElementById('wClose').onclick=hideGuide;
-  document.getElementById('wGo').onclick=hideGuide;
-  document.getElementById('welcome').addEventListener('click',e=>{ if(e.target.id==='welcome') hideGuide(); });
-  syncDock();
 }
 
 /* ---- Full-editor section order: match the creative loop ---- */
@@ -2792,27 +2638,6 @@ function openExport(){
 }
 function closeExport(){ const m=document.getElementById("exportModal"); if(m) m.classList.remove("open"); }
 
-/* ---- Simple-mode Motion menu (add animation without the Full editor) ---- */
-function markMotionMenu(){
-  const set=Array.isArray(state.animSet)?state.animSet:[];
-  document.querySelectorAll('#dockMotionMenu button[data-v]').forEach(b=>{
-    b.classList.toggle('on', b.dataset.v==='none' ? set.length===0 : set.includes(b.dataset.v));
-  });
-}
-function buildMotionMenu(){
-  const menu=document.getElementById('dockMotionMenu'); if(!menu) return;
-  const items=[['none','None (still)'],['boil','Boil'],['liquid','Liquid'],['morph','Morph'],['goo','Goo'],['ripple','Ripple']];
-  menu.innerHTML='<div class="mlbl">ANIMATE</div>';
-  items.forEach(([v,label])=>{
-    const b=document.createElement('button'); b.dataset.v=v; b.textContent=label;
-    b.onclick=()=>{ if(v==='none'){state.animSet=[];state.animType='none';} else {state.animSet=[v];state.animType=v;} syncAnimChips(); render(); refreshStrip(); markMotionMenu(); menu.classList.remove('open'); };
-    menu.appendChild(b);
-  });
-  const sur=document.createElement('button'); sur.textContent='🎲 Surprise motion'; sur.style.color='var(--acc)';
-  sur.onclick=()=>{ surpriseMotion(); markMotionMenu(); menu.classList.remove('open'); };
-  menu.appendChild(sur);
-  markMotionMenu();
-}
 
 /* ---- Welcome / quick guide ---- */
 function showGuide(){ const w=document.getElementById('welcome'); if(w) w.classList.add('open'); }
@@ -2893,12 +2718,13 @@ function init(){
   document.getElementById("expAllZip").onclick=exportGalleryZip;
   document.getElementById("addComp").onclick=addCompLayer;
   document.getElementById("randComp").onclick=randomComp;
-  document.getElementById("previewMorph").onclick=toggleMorphPlay;
+  { const _pm=document.getElementById("previewMorph"); if(_pm) _pm.onclick=toggleMorphPlay; }
   { const _ap=document.getElementById("animPlay"); if(_ap) _ap.onclick=toggleMorphPlay; }
   document.getElementById("footSurprise").onclick=surprisePoster;
   { const _fps=document.getElementById("footPosterStatic"); if(_fps) _fps.onclick=staticPoster; }
   { const _fw=document.getElementById("footWeave"); if(_fw) _fw.onclick=reweave; }
   document.getElementById("footAnimate").onclick=toggleMorphPlay;
+  syncMotionSeg();   /* initial segmented state: Still active until a loop starts */
   document.getElementById("festModal").onclick=festivalFormat;
   seg("alignSeg","alignMode",()=>applyAlign());
   slider("morphAmt","morphAmt",v=>(+v).toFixed(2).replace(/0$/,''));
@@ -2985,7 +2811,6 @@ function init(){
   restartCycleFn=restartCycle;   // expose the in-closure cycle restart to the motion-strip handlers
   document.getElementById("surpriseMotion").onclick=surpriseMotion;
   document.getElementById("guideToggle").onclick=()=>setGuides(!document.body.classList.contains("guides"));
-  document.getElementById("simpleGuides").onclick=()=>setGuides(!document.body.classList.contains("guides"));
   window.addEventListener("resize",()=>{ if(typeof positionGuides==="function") positionGuides(); });
   slider("cycleSecs","cycleSecs",v=>(+v).toFixed(1).replace(/\.0$/,''));
   document.getElementById("expWebm").onclick=function(){exportWEBM(this);};
@@ -3021,67 +2846,28 @@ function init(){
   });
   renderFinishCtl(); updGoldRow(); bgPresets(); syncSliders(); render(); shuffleStrip();
   loadPins(); renderPins(); renderCompList();
-  buildSimpleDock(); initMode();
-  if(!document.body.classList.contains("simple")) renderMotionStrip();   // seed strip only if starting in Full
+  renderMotionStrip();   // Simple/Reel modes retired — body is always mode-full; seed the motion strip directly
   maybeShowGuide();   // first-run quick guide
 }
 init();
 </script>
 <script>
-/* ===== Clean navigation shell on the full master: Simple / Full / Festival + 3-step spine =====
-   Additive layer over the untouched engine. Neutralises the master's canvas-first
-   simple dock and drives all three modes from the side panel. ===== */
+/* Full-editor navigation: fold the side-panel sections into labelled, collapsible
+   groups. (Simple / Reel / Festival modes and the 3-step spine were retired — these
+   groups are the only navigation now; the body stays .mode-full.) */
 (function(){
-  var body=document.body;
-  function byName(n){ return PRESETS.find(function(p){return p.name===n;}); }
-  var CURATED=["Liquid chrome","Holo","Neon","Green tribal","Frost glass","Toxic spray"];
-  var savedRatio=null;
-  function clearLookHi(){ document.querySelectorAll("#s_looks button,#f_looks button").forEach(function(x){x.style.borderColor="";}); }
-
-  function syncShell(){
-    var on = !window.CSF_STATIC && !!(state.animType && state.animType!=="none");   // "On" only when motion is actually showing
-    var sa=document.getElementById("s_anim");
-    if(sa){ sa.classList.toggle("on",on); sa.textContent=on?"On":"Off"; document.getElementById("s_animOpts").style.display=on?"block":"none"; }
-    document.querySelectorAll("#s_animChips button").forEach(function(x){ x.classList.toggle("on", x.dataset.v===(on?state.animType:"boil")); });
-    document.querySelectorAll("#s_ratio button").forEach(function(x){ x.classList.toggle("on", (+x.dataset.v)===(+state.ratio)); });
-    var ss=document.getElementById("s_speed"); if(ss){ ss.value=state.animSpeed||1; var o=document.getElementById("s_speedv"); if(o)o.textContent=(+(state.animSpeed||1)).toFixed(2).replace(/0$/,''); }
-  }
-
-  function buildLooks(elId){
-    var el=document.getElementById(elId); if(!el) return; el.innerHTML="";
-    CURATED.forEach(function(n){ var p=byName(n); if(!p) return;
-      var b=document.createElement("button");
-      b.innerHTML='<span class="dot" style="background:'+p.dot+'"></span>'+p.name;
-      b.onclick=function(){ applyPreset(p); el.querySelectorAll("button").forEach(function(x){x.style.borderColor="";}); b.style.borderColor="var(--acc)"; if(body.classList.contains("mode-festival")) enterFestival(false); syncShell(); };
-      el.appendChild(b);
-    });
-  }
-  buildLooks("s_looks"); buildLooks("f_looks");
-
-  function goMode(m){
-    if(body.classList.contains("mode-festival") && m!=="festival" && savedRatio!==null){ state.ratio=savedRatio; savedRatio=null; safe(syncAllUI); render(); }
-    body.classList.remove("simple","mode-simple","mode-full","mode-festival");
-    body.classList.add("mode-"+m);
-    document.querySelectorAll("#modeTabs button").forEach(function(b){ b.classList.toggle("on", b.dataset.mode===m); });
-    if(m==="festival") enterFestival(true);
-    syncShell();
-    try{ if(m==="simple"||m==="full") localStorage.setItem("csf_navmode",m); }catch(e){}   // persist last mode (#15)
-  }
-  document.querySelectorAll("#modeTabs button").forEach(function(b){ b.onclick=function(){ goMode(b.dataset.mode); }; });
-
-  function safe(fn){ try{ if(typeof fn==="function") fn(); }catch(e){} }
-  function safeStrip(){ try{ if(typeof refreshStrip==="function") refreshStrip(); }catch(e){} }
-
+  document.body.classList.add("mode-full");
+  document.body.classList.remove("simple","mode-simple","mode-festival");
   var GROUPS=[
-    {id:"look", title:"Pick a look", icon:"1", open:true, match:function(t){return /(Presets|Gallery|Palette)/.test(t)||t==="Finish";}},
+    {id:"look", title:"Pick a look", icon:"✧", open:true, match:function(t){return /(Presets|Gallery|Palette)/.test(t)||t==="Finish";}},
     {id:"stack", title:"Stack & series", icon:"▦", open:false, match:function(t){return /(Compose|Series)/.test(t);}},
     {id:"shape", title:"Shape & form", icon:"◆", open:false, match:function(t){return /(Layout|Position)/.test(t)||t==="Form";}},
     {id:"surface", title:"Surface & FX", icon:"✦", open:false, match:function(t){return /(Background|Light|Layers|FX)/.test(t);}},
     {id:"content", title:"Text & image", icon:"✎", open:false, match:function(t){return /(Text|Image)/.test(t);}},
-    {id:"motion", title:"Make it move", icon:"2", open:false, match:function(t){return /Animation/.test(t);}}
+    {id:"motion", title:"Make it move", icon:"≈", open:false, match:function(t){return /Animation/.test(t);}}
   ];
-  (function(){
-    var controls=document.getElementById("controls");
+  var controls=document.getElementById("controls");
+  if(controls){
     var secs=Array.prototype.slice.call(controls.querySelectorAll(":scope > .sec"));
     GROUPS.forEach(function(g){
       var grp=document.createElement("div"); grp.className="grp"+(g.open?"":" closed"); grp.dataset.grp=g.id;
@@ -3093,60 +2879,8 @@ init();
       controls.appendChild(grp);
     });
     secs.forEach(function(s){ if(!s.closest(".grp")) controls.appendChild(s); });
-  })();
-
-  /* step tabs (#spine) removed — Full editor is the only view now; its collapsible
-     groups are the navigation. Guarded in case the element is absent. */
-  var spine=document.getElementById("spine");
-  if(spine){
-    function spineGo(step){
-      spine.querySelectorAll(".step").forEach(function(s){ s.classList.toggle("on", s.dataset.step===step); });
-      if(step==="export"){ var ft=document.getElementById("foot"); if(ft) ft.scrollIntoView({behavior:"smooth"}); }
-      else { var gid=step==="look"?"look":"motion"; var grp=document.querySelector('.grp[data-grp="'+gid+'"]'); if(grp){ grp.classList.remove("closed"); grp.scrollIntoView({behavior:"smooth",block:"start"}); } }
-    }
-    spine.querySelectorAll(".step").forEach(function(s){ s.onclick=function(){ spineGo(s.dataset.step); }; });
   }
-
-  /* simple wiring */
-  document.getElementById("s_more").onclick=function(){ goMode("full"); };
-  document.querySelectorAll("#s_ratio button").forEach(function(b){ b.onclick=function(){ state.ratio=+b.dataset.v; safe(syncAllUI); render(); safeStrip(); syncShell(); }; });
-  document.getElementById("s_anim").onclick=function(){
-    var anyOn = (!window.CSF_STATIC) || (typeof morphPlaying!=="undefined"&&morphPlaying) || (typeof weavePlaying!=="undefined"&&weavePlaying);
-    if(typeof morphPlaying!=="undefined"&&morphPlaying&&typeof stopMorphPlay==="function") stopMorphPlay();
-    if(typeof weavePlaying!=="undefined"&&weavePlaying&&typeof stopWeave==="function") stopWeave();
-    if(anyOn){ window.CSF_STATIC=true; }                                   // turn motion OFF (static)
-    else { if(!state.animType||state.animType==="none") state.animType="boil"; state.animSet=[state.animType]; window.CSF_STATIC=false; }  // motion ON: surface flows in place
-    safe(syncAllUI); render(); syncShell();
-  };
-  document.querySelectorAll("#s_animChips button").forEach(function(b){ b.onclick=function(){
-    state.animType=b.dataset.v; state.animSet=[b.dataset.v];
-    if(typeof morphPlaying!=="undefined"&&morphPlaying&&typeof stopMorphPlay==="function") stopMorphPlay();
-    if(typeof weavePlaying!=="undefined"&&weavePlaying&&typeof stopWeave==="function") stopWeave();
-    window.CSF_STATIC=false;                                               // show the picked motion
-    safe(syncAllUI); render(); syncShell();
-  }; });
-  document.getElementById("s_speed").oninput=function(){ state.animSpeed=+this.value; safe(syncAllUI); render(); syncShell(); };
-  document.getElementById("s_svg").onclick=function(){ exportSVG(); };
-  document.getElementById("s_png").onclick=function(){ exportPNG(3); };
-  document.getElementById("s_vid").onclick=function(){ if(!state.animType||state.animType==="none"){ alert("Turn Animate on first (step 2)."); return; } exportWEBM(this); };
-  document.getElementById("s_seed").onclick=function(){ clearLookHi(); state.seed=randInt(1,999999); render(); safeStrip(); };
-  document.getElementById("s_shuffle").onclick=function(){ clearLookHi(); if(typeof randomizeAll==="function") randomizeAll(); else randomizeEverything(); syncShell(); };
-  document.getElementById("s_poster").onclick=function(){ clearLookHi(); if(typeof surprisePoster==="function") surprisePoster(); else if(typeof randomComp==="function") randomComp(); syncShell(); };
-  var _sps=document.getElementById("s_poster_static"); if(_sps) _sps.onclick=function(){ clearLookHi(); if(typeof staticPoster==="function") staticPoster(); else if(typeof randomComp==="function") randomComp(); syncShell(); };
-  var _sw=document.getElementById("s_weave"); if(_sw) _sw.onclick=function(){ if(typeof reweave==="function") reweave(); };
-
-  /* festival wiring — uses the master's festival format + Morph-clip export */
-  function enterFestival(reset){
-    if(reset){ if(savedRatio===null) savedRatio=state.ratio; if(typeof festivalFormat==="function") festivalFormat(); }
-    safe(syncAllUI); render();
-  }
-  document.getElementById("f_random").onclick=function(){ clearLookHi(); if(typeof randomComp==="function") randomComp(); enterFestival(false); };
-  document.getElementById("f_export").onclick=function(){ if(typeof festivalFormat==="function") festivalFormat(); exportMorph(this); };
-
-  /* take over from the master's canvas-first simple mode */
-  body.classList.remove("simple");
-  safe(function(){ if(typeof renderMotionStrip==="function") renderMotionStrip(); });
-  goMode("full");   // Full editor is the only view now (Simple/Reel modes retired from the UI)
+  if(typeof renderMotionStrip==="function"){ try{ renderMotionStrip(); }catch(e){} }
 })();
 </script>
 
@@ -3505,46 +3239,5 @@ init();
 })();
 </script>
 
-<script>
-/* ============ STACK UNDO (#14) ============================================
-   Snapshots the composition stack + the top look BEFORE each stack-changing
-   op (add / remove / clear / random comp), so ⌘Z / Ctrl+Z (or the Undo button
-   in Compose) reverts the last change. Separate from the ← → look history. */
-(function(){
-  var UNDO=[], MAX=25;
-  function snap(){ try{ return { comp:(Array.isArray(COMP)?COMP.map(function(c){return JSON.parse(JSON.stringify(c));}):[]), look:looksState(true) }; }catch(e){ return null; } }
-  function updBtn(){ var b=document.getElementById('undoComp'); if(b) b.style.display=UNDO.length?'block':'none'; }
-  function push(){ var s=snap(); if(s){ UNDO.push(s); if(UNDO.length>MAX) UNDO.shift(); updBtn(); } }
-  function undo(){
-    if(!UNDO.length) return;
-    var s=UNDO.pop();
-    try{
-      if(typeof morphPlaying!=='undefined' && morphPlaying && typeof stopMorphPlay==='function') stopMorphPlay();
-      COMP=s.comp.map(function(c){return JSON.parse(JSON.stringify(c));});   // bare COMP = shared binding
-      Object.assign(state, s.look);
-      if(typeof syncAllUI==='function') syncAllUI();
-      if(typeof renderCompList==='function') renderCompList();
-      if(typeof render==='function') render();
-    }catch(e){}
-    updBtn();
-  }
-  window.csfUndoStack=undo;
-  function boot(){
-    if(window.__csfUndo) return; window.__csfUndo=true;
-    ['addCompLayer','removeComp','clearComp','randomComp'].forEach(function(name){
-      var orig=window[name]; if(typeof orig!=='function') return;
-      window[name]=function(){ push(); return orig.apply(this,arguments); };
-    });
-    var b=document.getElementById('undoComp'); if(b) b.onclick=undo;
-    window.addEventListener('keydown',function(e){
-      var t=e.target; if(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'||t.isContentEditable)) return;
-      if((e.metaKey||e.ctrlKey) && (e.key==='z'||e.key==='Z') && !e.shiftKey){ e.preventDefault(); undo(); }
-    });
-    updBtn();
-  }
-  if(document.readyState==='complete'||document.readyState==='interactive'){ setTimeout(boot,0); }
-  else { window.addEventListener('load',boot); }
-})();
-</script>
 </body>
 </html>
