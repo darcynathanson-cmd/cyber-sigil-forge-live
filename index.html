@@ -253,6 +253,14 @@
         <div id="compRow"></div>
         <div class="foothint" id="compHint" style="text-align:left;margin-top:5px">No layers yet. Build one element (say a frame), Add it, then design the next (a symbol) — they stack into one asset. Each layer keeps its own finish, motion &amp; position; your current design sits on top. Click a layer to edit it.</div>
         <button class="btn ghost" id="clearComp" style="width:100%;margin-top:6px;display:none">Clear stack</button>
+        <div class="mini" style="margin-top:10px;display:flex;gap:6px">
+          <button class="btn pk" id="copyPoster" style="flex:1" title="Copy the ENTIRE stacked poster (all layers + background) as one code">⧉ Copy full poster code (for Claude)</button>
+        </div>
+        <div class="mini" style="margin-top:6px;display:flex;gap:6px">
+          <button class="btn ghost" id="loadPoster" style="flex:1">Load poster code</button>
+        </div>
+        <textarea id="posterCode" placeholder="full poster code (whole stack) — paste to load, or Copy to hand off…" style="width:100%;margin-top:6px;height:44px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--ink);padding:7px 9px;font-size:10px;font-family:monospace;resize:vertical"></textarea>
+        <div class="foothint" style="text-align:left;margin-top:2px">Unlike “Copy code” (top mark only), this captures every layer + the background so a poster can be rebuilt &amp; animated exactly.</div>
       </div>
       <div class="sec">
         <h2>Series · cohesive family</h2>
@@ -1868,6 +1876,47 @@ function applyPreset(p){
 function looksState(withImg){ const o={}; for(const k in state){ if(k==='imgData'&&!withImg) continue; o[k]=state[k]; } return JSON.parse(JSON.stringify(o)); }
 function encodeLook(){ return btoa(unescape(encodeURIComponent(JSON.stringify(looksState(false))))); }
 function loadLookCode(code){ try{ const o=JSON.parse(decodeURIComponent(escape(atob(code.trim())))); Object.assign(state,o); syncAllUI(); render(); refreshStrip(); return true; }catch(e){ return false; } }
+/* ---- full-poster code: encodes the ENTIRE stack (look + every COMP layer + bg) so Claude can rebuild & animate it exactly ---- */
+function _stripImgO(o){ const c={}; for(const k in o){ if(k==='imgData') continue; c[k]=o[k]; } return c; }
+async function encodePoster(){
+  const payload = { v:1, look:_stripImgO(looksState(false)), comp:(Array.isArray(COMP)?COMP.map(_stripImgO):[]) };
+  const json = JSON.stringify(payload);
+  try{
+    if(typeof CompressionStream!=='undefined'){
+      const stream = new Blob([json]).stream().pipeThrough(new CompressionStream('gzip'));
+      const bytes = new Uint8Array(await new Response(stream).arrayBuffer());
+      let bin=''; for(let i=0;i<bytes.length;i++) bin+=String.fromCharCode(bytes[i]);
+      return 'CSFZ:'+btoa(bin);
+    }
+  }catch(e){}
+  return 'CSF1:'+btoa(unescape(encodeURIComponent(json)));   // fallback: uncompressed
+}
+async function decodePoster(code){
+  code=(code||'').trim(); if(!code) return false;
+  try{
+    let json;
+    if(code.indexOf('CSFZ:')===0 && typeof DecompressionStream!=='undefined'){
+      const bin=atob(code.slice(5)); const bytes=new Uint8Array(bin.length);
+      for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+      const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+      json=await new Response(stream).text();
+    } else {
+      const raw = code.indexOf('CSF1:')===0 ? code.slice(5) : code;
+      json=decodeURIComponent(escape(atob(raw)));
+    }
+    const o=JSON.parse(json);
+    if(o && o.look){
+      COMP = Array.isArray(o.comp)? o.comp : [];
+      Object.assign(state, o.look);
+      if(typeof syncAllUI==='function') syncAllUI();
+      if(typeof renderCompList==='function') renderCompList();
+      render();
+      if(typeof refreshStrip==='function') refreshStrip();
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
 let PINS=[];
 const GAL_KEY='csf_gallery_v1', GAL_MAX=48;
 function loadPins(){ try{ const s=localStorage.getItem(GAL_KEY); if(s) PINS=JSON.parse(s)||[]; }catch(e){ PINS=[]; } }
@@ -2788,6 +2837,16 @@ function init(){
   document.getElementById("expAllZip").onclick=exportGalleryZip;
   document.getElementById("addComp").onclick=addCompLayer;
   document.getElementById("randComp").onclick=randomComp;
+  { const _cp=document.getElementById("copyPoster"); if(_cp) _cp.onclick=async()=>{
+      const code=await encodePoster(); const el=document.getElementById("posterCode");
+      if(el){ el.value=code; el.focus(); el.select(); }
+      try{ navigator.clipboard && navigator.clipboard.writeText(code); }catch(e){}
+      const t=_cp.textContent; _cp.textContent="Copied! Paste to Claude ✓"; setTimeout(()=>_cp.textContent=t,1400);
+    }; }
+  { const _lp=document.getElementById("loadPoster"); if(_lp) _lp.onclick=async()=>{
+      const ok=await decodePoster(document.getElementById("posterCode").value);
+      const t=_lp.textContent; _lp.textContent=ok?"Loaded ✓":"Bad code"; setTimeout(()=>_lp.textContent=t,1400);
+    }; }
   { const _pm=document.getElementById("previewMorph"); if(_pm) _pm.onclick=toggleMorphPlay; }
   { const _ap=document.getElementById("animPlay"); if(_ap) _ap.onclick=toggleMorphPlay; }
   document.getElementById("footSurprise").onclick=surprisePoster;
