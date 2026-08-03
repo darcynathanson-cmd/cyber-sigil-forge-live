@@ -2255,7 +2255,7 @@ async function exportWEBM(btn){
   if(typeof morphPlaying!=='undefined' && morphPlaying && typeof stopMorphPlay==='function') stopMorphPlay();
   CSFProg.show('Preparing video…','Setting up the render');
   try{
-    const H=1000,W=Math.round(1000*state.ratio), fps=24, N=48;
+    const H=1000,W=Math.round(1000*state.ratio), fps=30, N=60;
     const {OW,OH,RS}=reelOutSize(W,H,N);           // upscale to a 1920 long edge (1080×1920 for 9:16)
     const _snap=looksState(true), _snapComp=COMP.map(c=>JSON.parse(JSON.stringify(c)));   // freeze the look
     const _t0=performance.now();
@@ -2301,7 +2301,7 @@ async function exportReel(mode,btn,segsOverride){
   try{
     if(!(window.MediaRecorder)) throw new Error("MediaRecorder unavailable");
     state.animCycle=false; REELING=true;
-    const H=1000,W=Math.round(1000*state.ratio),fps=24,N=36;
+    const H=1000,W=Math.round(1000*state.ratio),fps=30,N=45;
     const {OW,OH,RS}=reelOutSize(W,H,N);           // 1080×1920 for 9:16 (per-segment frames only → full res)
     const cv=document.createElement("canvas");cv.width=OW;cv.height=OH;const ctx=cv.getContext("2d");
     const stream=cv.captureStream(fps);
@@ -2359,7 +2359,7 @@ async function exportMorph(btn){
     if(!window.MediaRecorder) throw new Error("MediaRecorder unavailable");
     REELING=true; state.animCycle=false;
     if(!(state.animSet&&state.animSet.length)){ state.animSet=['liquid']; state.animType='liquid'; }   // ensure flowing surface
-    const H=1000,W=Math.round(1000*state.ratio),fps=20,total=Math.max(40,Math.min(220,Math.round((state.morphSecs||6)*fps)));   // exact loop length (honours morphSecs up to 10s)
+    const H=1000,W=Math.round(1000*state.ratio),fps=30,total=Math.max(60,Math.min(300,Math.round((state.morphSecs||6)*fps)));   // exact loop length (honours morphSecs up to 10s)
     const {OW,OH,RS}=reelOutSize(W,H,total);       // 1080×1920 for 9:16 (memory-aware for long loops)
     const c={spikiness:state.spikiness,curl:state.curl,hook:state.hook,holes:state.holes,edge:state.edge,size:state.size,rotate:state.rotate,bgAngle:state.bgAngle,bgPatScale:state.bgPatScale,echoOffset:state.echoOffset};
     CSFProg.show('Preparing video…','Setting up the render'); const _t0=performance.now();
@@ -2513,7 +2513,7 @@ async function exportWeave(btn){
     if(!window.MediaRecorder) throw new Error("MediaRecorder unavailable");
     REELING=true; state.animCycle=false;
     if(!(state.animSet&&state.animSet.length)){ state.animSet=['liquid']; state.animType='liquid'; }
-    const H=1000,W=Math.round(1000*state.ratio),fps=20,total=Math.max(40,Math.min(220,Math.round((state.morphSecs||6)*fps)));
+    const H=1000,W=Math.round(1000*state.ratio),fps=30,total=Math.max(60,Math.min(300,Math.round((state.morphSecs||6)*fps)));
     const {OW,OH,RS}=reelOutSize(W,H,total);
     const amt=(state.morphAmt!=null?state.morphAmt:1);
     CSFProg.show('Preparing video…','Setting up the render'); const _t0=performance.now();
