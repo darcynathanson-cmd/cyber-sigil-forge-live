@@ -704,6 +704,7 @@
     </div>
     <div class="emGroup">
       <div class="emLbl">Showcase reel · video</div>
+      <button class="tgl" id="animScope" style="width:100%;margin:0 0 8px">🎞 Motion: all layers moving (richer)</button>
       <div class="emBtns">
         <button class="btn ghost" id="reelMorph" style="grid-column:1 / -1">🎬 Morph clip — this design, constantly morphing</button>
         <button class="btn ghost" id="reelMotions">🎬 All motions</button>
@@ -2363,23 +2364,30 @@ async function exportMorph(btn){
     const {OW,OH,RS}=reelOutSize(W,H,total);       // 1080×1920 for 9:16 (memory-aware for long loops)
     const c={spikiness:state.spikiness,curl:state.curl,hook:state.hook,holes:state.holes,edge:state.edge,size:state.size,rotate:state.rotate,bgAngle:state.bgAngle,bgPatScale:state.bgPatScale,echoOffset:state.echoOffset};
     CSFProg.show('Preparing video…','Setting up the render'); const _t0=performance.now();
-    // Fast bake: rasterise the static background + stacked layers ONCE, then per frame draw
-    // ONLY the animated top mark over the cached background. For stacked designs that's far
-    // fewer rasters per frame (~4× faster with a few layers). Trade-off: the stacked layers
-    // hold still; the top mark still animates — same two-node approach as the live morph preview.
-    const _svgHead=`xmlns="${SVGNS}" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" width="${OW}" height="${OH}"`;
-    const _bg=buildMorphBG();
-    const _bgBmp=await rasterSVGStr(`<svg ${_svgHead}>${_bg.inner}</svg>`);
-    const _cbake=document.createElement("canvas");_cbake.width=OW;_cbake.height=OH;const _gbake=_cbake.getContext("2d");
     const frames=[];
-    for(let i=0;i<total;i++){
-      const _fg=await rasterSVGStr(`<svg ${_svgHead}>${buildMorphFG(i/total)}</svg>`);
-      _gbake.clearRect(0,0,OW,OH); _gbake.drawImage(_bgBmp,0,0,OW,OH); _gbake.drawImage(_fg,0,0,OW,OH);
-      frames.push(await createImageBitmap(_cbake));
-      if(_fg.close) _fg.close();
-      if(i%4===0) CSFProg.set(i/total*0.5,'Drawing frames','Frame '+(i+1)+' of '+total);
+    if(window.CSF_ANIM_ALL){
+      // ALL layers animate together: full render each frame — every layer flexes its surface at
+      // the SAME phase, so the whole stack "breathes" in sync. Richer, slower.
+      for(let i=0;i<total;i++){
+        frames.push(await rasterFrame(i/total,W,H,RS));
+        if(i%4===0) CSFProg.set(i/total*0.5,'Drawing frames','Frame '+(i+1)+' of '+total);
+      }
+    } else {
+      // Fast: rasterise the static background + stacked layers ONCE, then per frame draw ONLY the
+      // animated top mark over the cached background (~4× faster; the stacked layers hold still).
+      const _svgHead=`xmlns="${SVGNS}" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" width="${OW}" height="${OH}"`;
+      const _bg=buildMorphBG();
+      const _bgBmp=await rasterSVGStr(`<svg ${_svgHead}>${_bg.inner}</svg>`);
+      const _cbake=document.createElement("canvas");_cbake.width=OW;_cbake.height=OH;const _gbake=_cbake.getContext("2d");
+      for(let i=0;i<total;i++){
+        const _fg=await rasterSVGStr(`<svg ${_svgHead}>${buildMorphFG(i/total)}</svg>`);
+        _gbake.clearRect(0,0,OW,OH); _gbake.drawImage(_bgBmp,0,0,OW,OH); _gbake.drawImage(_fg,0,0,OW,OH);
+        frames.push(await createImageBitmap(_cbake));
+        if(_fg.close) _fg.close();
+        if(i%4===0) CSFProg.set(i/total*0.5,'Drawing frames','Frame '+(i+1)+' of '+total);
+      }
+      if(_bgBmp.close) _bgBmp.close();
     }
-    if(_bgBmp.close) _bgBmp.close();
     const cv=document.createElement("canvas");cv.width=OW;cv.height=OH;const ctx=cv.getContext("2d");
     const stream=cv.captureStream(fps);
     const {mime,ext}=pickVideoMime();
@@ -2801,6 +2809,10 @@ function init(){
   document.getElementById("expPng").onclick=()=>exportPNG(3);
   document.getElementById("expPng4").onclick=()=>exportPNG(4);
   document.getElementById("reelMorph").onclick=function(){exportMorph(this);};
+  window.CSF_ANIM_ALL=true;   // default: all stacked layers animate together (richer). Toggle → top-only (faster).
+  (function(){ const b=document.getElementById('animScope'); if(!b) return;
+    const upd=()=>{ b.textContent = window.CSF_ANIM_ALL ? '🎞 Motion: all layers moving (richer)' : '🎞 Motion: top layer only (faster)'; b.classList.toggle('on', window.CSF_ANIM_ALL); };
+    b.onclick=()=>{ window.CSF_ANIM_ALL=!window.CSF_ANIM_ALL; upd(); }; upd(); })();
   document.getElementById("reelMotions").onclick=function(){exportReel('motions',this);};
   document.getElementById("reelVariety").onclick=function(){exportReel('variety',this);};
   // ---- image ----
