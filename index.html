@@ -68,6 +68,12 @@
   .chips{display:flex;flex-wrap:wrap;gap:6px}
   .chips button{background:var(--panel2);border:1px solid var(--line);color:var(--dim);border-radius:7px;padding:6px 9px;font-size:11px;cursor:pointer;font-family:inherit}
   .chips button.on{border-color:var(--acc);color:var(--ink)}
+  .motiflib{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}
+  .motiflib button{background:var(--panel2);border:1px solid var(--line);color:var(--dim);border-radius:8px;padding:6px 4px 7px;font-size:10px;cursor:pointer;font-family:inherit;line-height:1.15;min-width:0}
+  .motiflib button svg{display:block;width:100%;height:54px;margin:0 auto 4px;color:#f3f3f7;overflow:visible}
+  .motiflib button span{display:block;white-space:normal}
+  .motiflib button:hover{border-color:var(--acc2);color:var(--ink)}
+  .motiflib button.on{border-color:var(--acc);color:var(--ink);background:rgba(124,252,0,.10);box-shadow:0 0 0 1px rgba(124,252,0,.12)}
   .swatchrow{display:flex;align-items:center;gap:8px;margin:9px 0}
   .swatchrow label{flex:0 0 96px;color:var(--dim);font-size:11.5px}
   .swatchrow input[type=color]{width:34px;height:24px;border:1px solid var(--line);border-radius:6px;background:none;padding:0;cursor:pointer}
@@ -194,6 +200,33 @@
   .scard.flash{animation:cardFlash .7s ease-out}
 </style>
 <style id="csf-motion-css">#animChips button[data-v="shimmer"],#animChips button[data-v="pulse"],#animChips button[data-v="spin"],#animChips button[data-v="flicker"],#s_animChips button[data-v="shimmer"],#s_animChips button[data-v="pulse"],#s_animChips button[data-v="spin"],#s_animChips button[data-v="flicker"]{display:none!important}</style>
+<style id="preview-mobile-css">
+  /* Safety-sensitive rotational/cross choices are unavailable in this public-facing preview. */
+  #symSeg button[data-v="radial"],#patternChips button[data-v="cross"],#bgPatChips button[data-v="cross"]{display:none!important}
+  @media(max-width:760px){
+    html,body{height:100%;overflow:hidden}
+    #app{height:100dvh;min-height:0;flex-direction:column;overflow:hidden}
+    #stage{flex:0 0 43dvh;min-height:280px;width:100%;overflow:hidden}
+    #frameWrap{max-width:94%;max-height:92%}
+    #frameWrap svg{width:min(40vh,88vw);max-height:39dvh}
+    #stageBadge{left:10px;top:9px;font-size:9px}
+    #seedTag{right:10px;top:9px;font-size:9px}
+    #hint{display:none}
+    #panel{width:100%;flex:1 1 auto;min-height:0;height:auto;border-left:0;border-top:1px solid var(--line);overflow:hidden}
+    #brand{padding:8px 12px 7px}
+    #controls{padding-bottom:84px;overscroll-behavior:contain}
+    .sec{padding-left:14px;padding-right:14px}
+    .motiflib{grid-template-columns:repeat(3,minmax(0,1fr))}
+    #foot{padding:10px 14px 76px}
+    #csfBar{max-width:calc(100vw - 12px);overflow-x:auto;overflow-y:hidden;bottom:6px!important;scrollbar-width:none}
+    #csfBar::-webkit-scrollbar{display:none}
+    #csfBar button{min-height:34px}
+  }
+  @media(max-width:390px){
+    #stage{flex-basis:39dvh;min-height:250px}
+    #frameWrap svg{max-height:35dvh}
+  }
+</style>
 </head>
 <body class="mode-full">
 <div id="app">
@@ -271,24 +304,33 @@
         <div class="foothint" style="text-align:left;margin-top:5px">Keeps your palette, finish, motion &amp; layout — rolls only the shape, so the set reads as one family. Click a tile to load it · ✚ saves one · or Save all.</div>
       </div>
       <div class="sec">
-        <h2>Image / mixed media</h2>
-        <input type="file" id="imgInput" accept="image/png,image/*" style="display:none">
-        <button class="btn ghost" id="imgUpload" style="width:100%">Upload PNG…</button>
+        <h2>Motif — optional top layer</h2>
+        <div class="foothint" style="text-align:left;margin:0 0 8px">The live/original Forge stays wild underneath. Pick one directly, or leave <b>Keep Motif</b> off and Shuffle will reroll the motif with everything else.</div>
+        <div class="motiflib" id="motifLib" aria-label="Motif library">
+          <button data-charm="mask" data-label="Butterfly mask">Butterfly<br>mask</button>
+          <button data-charm="seahorses" data-label="Heart seahorses">Heart<br>seahorses</button>
+          <button data-charm="house" data-label="Enchanted house">Enchanted<br>house</button>
+          <button data-charm="tulip" data-label="Chunky tulip">Chunky<br>tulip</button>
+          <button data-charm="bow" data-label="Ribbon bow">Ribbon<br>bow</button>
+          <button data-charm="vase" data-label="Heart vase">Heart<br>vase</button>
+        </div>
+        <input type="file" id="imgInput" accept="image/png,image/svg+xml,image/*" style="display:none">
+        <button class="btn ghost" id="imgUpload" style="width:100%">Upload a silhouette…</button>
         <div id="imgCtl" style="display:none;margin-top:6px">
           <div class="row"><label>Scale</label><input type="range" id="imgScale" min="0.15" max="1.6" step="0.01" value="0.6"><span class="val" id="imgScalev">.60</span></div>
           <div class="row"><label>Horizontal</label><input type="range" id="imgX" min="-45" max="45" step="1" value="0"><span class="val" id="imgXv">0</span></div>
           <div class="row"><label>Vertical</label><input type="range" id="imgY" min="-45" max="45" step="1" value="0"><span class="val" id="imgYv">0</span></div>
           <div class="row"><label>Rotate</label><input type="range" id="imgRot" min="-180" max="180" step="1" value="0"><span class="val" id="imgRotv">0</span></div>
           <div class="row"><label>Opacity</label><input type="range" id="imgOpacity" min="0.1" max="1" step="0.05" value="1"><span class="val" id="imgOpacityv">1</span></div>
-          <div class="row"><label>Layer</label>
+          <div class="row"><label>Treatment</label>
             <div class="seg" id="imgOrderSeg" style="flex:1">
-              <button data-v="back">Behind</button>
-              <button data-v="front">Front</button>
-              <button data-v="top">On top</button>
+              <button data-v="top">Top</button>
+              <button data-v="front">Fused</button>
+              <button data-v="back">Ghost</button>
             </div>
           </div>
-          <div class="row"><button class="tgl" id="imgRemove" style="flex:1">Remove image</button></div>
-          <div class="foothint" style="text-align:left;margin-top:2px">Behind / Front = under or over the mark (pattern + effects still apply to it). <b>On top</b> = above everything incl. the bg pattern, kept clean (no dots over it).</div>
+          <div class="row"><button class="tgl" id="imgRemove" style="flex:1">Remove motif</button></div>
+          <div class="foothint" style="text-align:left;margin-top:2px"><b>Top</b>, <b>Fused</b> and <b>Ghost</b> only change placement. Finish, Layers and FX style the motif exactly like the other marks.</div>
         </div>
       </div>
       <div class="sec">
@@ -563,6 +605,7 @@
         <button class="tgl" data-lock="colors" style="flex:1;padding:5px 2px" title="Keep the current colours when you Shuffle">Color</button>
         <button class="tgl" data-lock="layout" style="flex:1;padding:5px 2px" title="Keep the current layout when you Shuffle">Layout</button>
         <button class="tgl" data-lock="fx" style="flex:1;padding:5px 2px" title="Keep the current FX when you Shuffle">FX</button>
+        <button class="tgl" data-lock="motif" style="flex:1;padding:5px 2px" title="Keep this motif and its placement while the rest Shuffles">Motif</button>
       </div>
 
       <!-- VARIATION -->
@@ -572,7 +615,7 @@
       </div>
       <div class="mini">
         <button class="btn pk" id="footSurprise" style="flex:2" title="One tap: a random stacked, animated poster — tap again for another">✨ Surprise me</button>
-        <button class="btn ghost" id="randAll" style="flex:1;font-size:10.5px" title="Shuffle everything, ignoring the KEEP locks">Shuffle · ignore locks</button>
+        <button class="btn ghost" id="randAll" style="flex:1;font-size:10.5px" title="Reroll every part once, ignoring the KEEP locks">Start over</button>
       </div>
       <div class="mini">
         <button class="tgl" id="transToggle" style="flex:1">Transparent BG: off</button>
@@ -775,7 +818,7 @@ const state = {
   gelHue:"#ff3fa4", gelSW:0,
   sprayFill:"#ff2fa0", sprayGlow:"#7CFC00", sprayRough:0.35,
   neonColor:"#ff2fa0", glassTint:"#bfe9ff",
-  imgData:"", imgW:0, imgH:0, imgScale:0.6, imgX:0, imgY:0, imgRot:0, imgOpacity:1, imgOrder:"back",
+  charmId:"", imgData:"", imgW:0, imgH:0, imgScale:0.6, imgX:0, imgY:0, imgRot:0, imgOpacity:1, imgOrder:"top",
   text:"", textFont:"Bebas", textSize:150, textPos:"bottom", textTrack:2, textUpper:true, sub:"", subSize:52, textFit:false,
   treat:"solid", stickerColor:"#000000", stickerW:16,
   echo:0, echoColor:"#ff2fa0", echoOffset:18,
@@ -784,7 +827,7 @@ const state = {
   grain:0, warp:0, glitch:0,
   animType:"none", animSet:[], animSpeed:1, animCycle:false, cycleSecs:5, morphAmt:1, morphSecs:6, alignMode:"center",
   offX:0, offY:0, markScale:1, rotate:0,
-  locks:{finish:false,colors:false,layout:false,fx:false},
+  locks:{finish:false,colors:false,layout:false,fx:false,motif:false},
   palette:["#ff2fa0","#7CFC00","#0b0b12"], bgPatOpacity:0.5, seriesN:8,
   seed: 12345
 };
@@ -1421,9 +1464,87 @@ function bladeLayerMarkup(unit,mats){
   return `<g filter="url(#sprayRough)">${glow}${ink}</g>`;
 }
 
+/* Preview-only motif library: the approved newer bodies, without the later
+   shared weave, curated support structures or scene logic. */
+const CHARM_LIBRARY={
+  mask:{w:240,h:250,scale:.50,oy:1,body:`<path d="M120 58C108 48 101 32 98 16C86 30 86 45 96 58C70 39 39 40 24 61C7 85 18 113 43 124C22 140 24 169 45 182C67 196 91 178 104 156C102 184 108 209 120 231C132 209 138 184 136 156C149 178 173 196 195 182C216 169 218 140 197 124C222 113 233 85 216 61C201 40 170 39 144 58C154 45 154 30 142 16C139 32 132 48 120 58Z"/><path class="cut" d="M104 98C83 87 58 89 42 103C59 113 81 114 104 107ZM136 98C157 87 182 89 198 103C181 113 159 114 136 107Z"/><path class="spine" d="M120 66C114 86 115 111 120 126C125 111 126 86 120 66Z"/>`},
+  seahorses:{w:240,h:250,scale:.54,oy:-1,body:`<path d="M112 54C102 48 99 35 103 22C92 32 80 35 68 32C51 29 39 42 41 58C43 74 57 82 75 81H96C83 90 68 106 71 126C74 146 94 151 91 166C88 181 69 182 63 199C56 219 72 236 92 229C107 224 112 207 103 197C96 189 84 192 80 201C79 187 95 179 108 187C126 199 122 226 101 239H119C126 211 119 188 108 173C96 155 100 139 109 121C121 97 116 74 98 62L113 61Z"/><g transform="translate(240 0) scale(-1 1)"><path d="M112 54C102 48 99 35 103 22C92 32 80 35 68 32C51 29 39 42 41 58C43 74 57 82 75 81H96C83 90 68 106 71 126C74 146 94 151 91 166C88 181 69 182 63 199C56 219 72 236 92 229C107 224 112 207 103 197C96 189 84 192 80 201C79 187 95 179 108 187C126 199 122 226 101 239H119C126 211 119 188 108 173C96 155 100 139 109 121C121 97 116 74 98 62L113 61Z"/></g><path class="cut" d="M120 93C108 78 91 83 91 99C91 113 104 123 120 140C136 123 149 113 149 99C149 83 132 78 120 93Z"/><path class="cut" d="M68 54A5 5 0 1 0 78 54A5 5 0 1 0 68 54ZM162 54A5 5 0 1 0 172 54A5 5 0 1 0 162 54Z"/>`},
+  house:{w:240,h:250,scale:.53,oy:5,body:`<path d="M120 24C109 45 91 65 72 83L45 110C34 104 20 108 19 120C18 133 33 139 46 131C45 160 46 191 51 219C91 231 149 231 189 219C194 191 195 160 194 131C207 139 222 133 221 120C220 108 206 104 195 110L168 83C149 65 131 45 120 24Z"/><path class="cut" d="M71 122C80 108 95 108 104 122C95 136 80 136 71 122ZM136 122C145 108 160 108 169 122C160 136 145 136 136 122ZM120 154C101 169 98 190 98 218H142C142 190 139 169 120 154Z"/><path class="spine" d="M120 53C113 71 113 91 120 108C127 91 127 71 120 53Z"/>`},
+  tulip:{w:240,h:250,scale:.52,oy:2,body:`<path d="M120 101C88 101 64 81 58 50C76 58 94 48 102 23C111 35 117 49 120 63C123 49 129 35 138 23C146 48 164 58 182 50C176 81 152 101 120 101Z"/><path d="M108 91H132C130 108 130 124 131 140C149 116 176 109 200 122C185 150 159 163 132 158C133 182 135 206 139 229C128 235 112 235 101 229C105 206 107 182 108 158C81 163 55 150 40 122C64 109 91 116 109 140C110 124 110 108 108 91Z"/><path class="cut" d="M120 116C108 130 108 146 120 160C132 146 132 130 120 116Z"/><path class="spine" d="M120 63C114 78 114 92 120 104C126 92 126 78 120 63Z"/>`},
+  bow:{w:240,h:250,scale:.54,oy:-4,body:`<path d="M111 90C88 65 59 51 34 57C8 63 7 93 22 112C39 133 71 128 103 109L82 222L120 193L158 222L137 109C169 128 201 133 218 112C233 93 232 63 206 57C181 51 152 65 129 90Z"/><path class="cut" d="M98 91C78 76 57 69 42 75C32 79 33 93 41 101C53 113 76 106 98 96ZM142 91C162 76 183 69 198 75C208 79 207 93 199 101C187 113 164 106 142 96Z"/><path class="spine" d="M120 78C104 78 96 89 100 104C103 116 111 123 120 130C129 123 137 116 140 104C144 89 136 78 120 78Z"/>`},
+  vase:{w:240,h:250,scale:.55,oy:1,body:`<path d="M98 103C101 126 94 145 79 163C68 178 61 196 58 214C91 232 149 232 182 214C179 196 172 178 161 163C146 145 139 126 142 103Z"/><path d="M94 108C102 96 105 86 104 75H136C135 86 138 96 146 108Z"/><path d="M120 82C98 82 82 69 78 48C91 52 104 45 110 29C116 38 119 49 120 58C121 49 124 38 130 29C136 45 149 52 162 48C158 69 142 82 120 82Z"/><path class="line" d="M96 108C108 116 132 116 144 108"/><path class="cut" d="M120 166C104 151 87 160 89 177C91 191 104 202 120 216C136 202 149 191 151 177C153 160 136 151 120 166Z"/><path class="spine" d="M120 58C114 78 114 99 120 116C126 99 126 78 120 58Z"/>`}
+};
+const NATIVE_MOTIF_IDS=Object.keys(CHARM_LIBRARY);
+function setNativeMotif(id,opts){
+  const c=CHARM_LIBRARY[id]; if(!c) return;
+  opts=opts||{};
+  state.charmId=id; state.imgData=''; state.imgW=c.w; state.imgH=c.h;
+  let scale=c.scale*(opts.vary===false?1:randF(.92,1.08));
+  if(opts.compensate) scale/=Math.max(.5,state.markScale||1);
+  state.imgScale=Math.min(1.4,+scale.toFixed(3));
+  state.imgX=0; state.imgY=opts.vary===false?0:randInt(-3,3); state.imgRot=0;
+  state.imgOrder=opts.order||pick(['top','top','front','front','back']);
+  state.imgOpacity=state.imgOrder==='back'?.36:1;
+}
+function randomizeNativeMotif(opts){
+  opts=opts||{};
+  const avoid=Object.prototype.hasOwnProperty.call(opts,'avoidId')?opts.avoidId:state.charmId;
+  const choices=NATIVE_MOTIF_IDS.filter(id=>id!==avoid);
+  setNativeMotif(pick(choices.length?choices:NATIVE_MOTIF_IDS),opts);
+}
+function renderMotifLibrary(){
+  document.querySelectorAll('#motifLib [data-charm]').forEach(b=>{
+    const c=CHARM_LIBRARY[b.dataset.charm]; if(!c) return;
+    const body=c.body.replace(/<path(?! class)/g,'<path class="solid"')
+      .replace(/<path class="cut line"/g,'<path fill="none" stroke="currentColor" stroke-width="5"')
+      .replace(/<path class="cut"/g,'<path fill="#111117" stroke="currentColor" stroke-width="5"')
+      .replace(/<path class="spine line"/g,'<path fill="none" stroke="currentColor" stroke-width="5"')
+      .replace(/<path class="spine"/g,'<path fill="currentColor" stroke="none"')
+      .replace(/<path class="line"/g,'<path fill="none" stroke="currentColor" stroke-width="5"')
+      .replace(/<path class="solid"/g,'<path fill="#ff4fb0" stroke="currentColor" stroke-width="5" stroke-linejoin="round"');
+    b.innerHTML=`<svg viewBox="-10 -10 ${c.w+20} ${c.h+20}" aria-hidden="true">${body}</svg><span>${b.dataset.label||b.dataset.charm}</span>`;
+  });
+}
+function motifContrastRim(){
+  const colors=state.bgMode==='gradient'?[state.bg,state.bg2]:[state.bg];
+  const lum=colors.reduce((sum,hex)=>{ const c=hexToRgb(hex||'#0b0b12'); return sum+c.r*.299+c.g*.587+c.b*.114; },0)/colors.length;
+  return lum<145?'#f5f5f8':'#0b0b12';
+}
+function nativeCharmMarkup(W,H){
+  const c=CHARM_LIBRARY[state.charmId]; if(!c) return "";
+  const bw=W*state.imgScale, bh=H*Math.min(.78,state.imgScale*1.15), s=Math.min(bw/c.w,bh/c.h);
+  const x=W/2+(state.imgX||0)/100*W, y=H/2+(state.imgY||0)/100*H, F=state.finish;
+  const gradFin={chrome:['chromeG','chromeFX'],gel:['gelG','gelFX'],holo:['holoG','holoFX'],glass:['glassG','glassFX']};
+  let fill=state.flatFill, rim=motifContrastRim(), fx='';
+  /* A motif is a first-class Forge mark: placement never changes its finish.
+     The same Finish and Layers controls that style generated geometry style it. */
+  if(state.treat==='outline'){ fill='none'; fx=''; }
+  else if(gradFin[F]){ fill=`url(#${gradFin[F][0]})`; fx=` filter="url(#${gradFin[F][1]})"`; }
+  else if(F==='neon'){ fill='url(#neonCore)'; fx=' filter="url(#neonGlow)"'; }
+  else if(F==='graffiti'){ fill=state.sprayFill; fx=' filter="url(#sprayRough)"'; }
+  const cutRE=/<path class="cut(?: line)?"[^>]*\/>/g, cutPaths=c.body.match(cutRE)||[];
+  const maskBody=c.body.replace(/<path(?! class)/g,'<path fill="#fff" stroke="#fff" stroke-width="2"')
+    .replace(/<path class="cut line"/g,'<path fill="none" stroke="#000" stroke-width="6"')
+    .replace(/<path class="cut"/g,'<path fill="#000" stroke="#000" stroke-width="2"')
+    .replace(/<path class="spine line"/g,'<path fill="none" stroke="#fff" stroke-width="5"')
+    .replace(/<path class="spine"/g,'<path fill="#fff" stroke="#fff" stroke-width="2"')
+    .replace(/<path class="line"/g,'<path fill="none" stroke="#fff" stroke-width="5"');
+  const body=c.body.replace(cutRE,'').replace(/<path(?! class)/g,'<path class="solid"')
+    .replace(/<path class="spine line"/g,`<path fill="none" stroke="${rim}" stroke-width="3"`)
+    .replace(/<path class="spine"/g,`<path fill="${rim}" stroke="none"`)
+    .replace(/<path class="line"/g,`<path fill="none" stroke="${rim}" stroke-width="3"`)
+    .replace(/<path class="solid"/g,`<path fill="${fill}" stroke="${rim}" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"`);
+  const cuts=cutPaths.join('').replace(/<path class="cut(?: line)?"/g,`<path fill="none" stroke="${rim}" stroke-width="3" stroke-linejoin="round"`);
+  const maskId=`previewCharmMask-${state.charmId}`, rot=state.imgRot||0, op=state.imgOpacity==null?1:state.imgOpacity;
+  return `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${rot}) scale(${s.toFixed(4)}) translate(${-c.w/2} ${(-c.h/2+(c.oy||0)).toFixed(1)})" opacity="${op}">
+    <defs><mask id="${maskId}" maskUnits="userSpaceOnUse" x="-28" y="-28" width="${c.w+56}" height="${c.h+56}">${maskBody}</mask></defs>
+    <g mask="url(#${maskId})"${fx}>${body}</g>${cuts}
+  </g>`;
+}
 /* uploaded PNG / mixed media, placed in the composition so the glow / sticker /
    echo / outline / pattern layers apply to its silhouette (best with a cut-out) */
 function imageMarkup(W,H){
+  if(state.charmId) return nativeCharmMarkup(W,H);
   if(!state.imgData) return "";
   const aw=state.imgW||1, ah=state.imgH||1;
   const tw=W*state.imgScale, th=tw*(ah/aw);
@@ -1520,23 +1641,30 @@ function markBlock(animT,opts){
   layers+=textLayerMarkup(W,H);             // wordmark, shares the finish
   const defs=buildFinishDefs()+buildLayerDefs()+buildBgDefs()+buildFxDefs();
   // ---- layer stack ----
-  const oo=state.echoOffset;
-  let behind="";
-  for(let i=state.echo;i>=1;i--) behind+=`<g transform="translate(${(oo*i).toFixed(1)},${(oo*i).toFixed(1)})" filter="url(#echoFlood)">${layers}</g>`;
-  const sticker = state.treat==="sticker" ? `<g filter="url(#stickerHalo)">${layers}</g>` : "";
-  const glowLayer = state.glow ? `<g filter="url(#backGlow)">${layers}</g>` : "";
-  const inner = state.twoTone ? `<g filter="url(#innerTone)">${layers}</g>` : "";
-  const pattern = state.pattern!=="none"
-    ? `<mask id="markMask"><g filter="url(#floodWhite)">${layers}</g></mask><rect x="0" y="0" width="${W}" height="${H}" fill="url(#pat)" mask="url(#markMask)"/>` : "";
+  function styledSubject(subject,maskId){
+    const oo=state.echoOffset;
+    let behind="";
+    for(let i=state.echo;i>=1;i--) behind+=`<g transform="translate(${(oo*i).toFixed(1)},${(oo*i).toFixed(1)})" filter="url(#echoFlood)">${subject}</g>`;
+    const sticker = state.treat==="sticker" ? `<g filter="url(#stickerHalo)">${subject}</g>` : "";
+    const glowLayer = state.glow ? `<g filter="url(#backGlow)">${subject}</g>` : "";
+    const inner = state.twoTone ? `<g filter="url(#innerTone)">${subject}</g>` : "";
+    const pattern = state.pattern!=="none"
+      ? `<mask id="${maskId}"><g filter="url(#floodWhite)">${subject}</g></mask><rect x="0" y="0" width="${W}" height="${H}" fill="url(#pat)" mask="url(#${maskId})"/>` : "";
+    let out=`${glowLayer}${behind}${sticker}${subject}${inner}${pattern}`;
+    if(state.warp>0)   out=`<g filter="url(#warpF)">${out}</g>`;
+    if(state.glitch>0) out=`<g filter="url(#glitchF)">${out}</g>`;
+    return out;
+  }
   let bgRect="";
   if(!state.transparent){
     const fill=state.bgMode==="gradient" ? "url(#bgGrad)" : state.bg;
     bgRect=`<rect x="0" y="0" width="${W}" height="${H}" fill="${fill}"/>`;
     if(state.bgPat!=="none") bgRect+=`<rect x="0" y="0" width="${W}" height="${H}" fill="url(#bgPat)" opacity="${state.bgPatOpacity}"/>`;
   }
-  let content=`${glowLayer}${behind}${sticker}${layers}${inner}${pattern}${imgTopLayer}`;
-  if(state.warp>0)   content=`<g filter="url(#warpF)">${content}</g>`;
-  if(state.glitch>0) content=`<g filter="url(#glitchF)">${content}</g>`;
+  let content=styledSubject(layers,'markMask');
+  /* Top placement stays above the support stack, but receives an independent
+     pass through the same echo/sticker/pattern/warp/glitch styling system. */
+  if(imgTopLayer) content+=styledSubject(imgTopLayer,'motifMarkMask');
   // ---- motion (multi-select COMBINE + optional CYCLE) ----
   let animStyle="", extraDefs="";
   const cx=W/2, cy=H/2, aSp=state.animSpeed||1;
@@ -1625,6 +1753,7 @@ function prefixIds(str,p){
 let _compCache={key:null,stack:""};
 function buildSVG(forExport,animT,opts){
   opts=opts||{};
+  enforceSymbolSafety();
   const base=markBlock(animT,opts);
   const W=base.W, H=base.H;
   let stack="";
@@ -1856,10 +1985,12 @@ function syncAllUI(){
   ['textSize','textTrack','subSize'].forEach(setRange); segSet('textPosSeg',state.textPos);
   const up=document.getElementById('upperToggle'); if(up){up.classList.toggle('on',state.textUpper);up.textContent=state.textUpper?'On':'Off';}
   const fit=document.getElementById('fitToggle'); if(fit) fit.classList.toggle('on',state.textFit);
-  segSet('imgOrderSeg',state.imgOrder||'back');
+  segSet('imgOrderSeg',state.imgOrder||'top');
   ['imgScale','imgX','imgY','imgRot','imgOpacity','seriesN'].forEach(setRange);
-  const ic=document.getElementById('imgCtl'); if(ic) ic.style.display=state.imgData?'block':'none';
-  const iu=document.getElementById('imgUpload'); if(iu) iu.textContent=state.imgData?'Replace PNG…':'Upload PNG…';
+  const hasMotif=!!(state.charmId||state.imgData);
+  const ic=document.getElementById('imgCtl'); if(ic) ic.style.display=hasMotif?'block':'none';
+  const iu=document.getElementById('imgUpload'); if(iu) iu.textContent=state.imgData?'Replace silhouette…':'Upload a silhouette…';
+  document.querySelectorAll('#motifLib [data-charm]').forEach(b=>b.classList.toggle('on',b.dataset.charm===state.charmId));
   if(typeof syncDock==='function') syncDock();
 }
 function applyPreset(p){
@@ -1993,15 +2124,22 @@ function randomComp(){
   if(typeof stopMorphPlay==='function') stopMorphPlay();
   if(typeof weavePlaying!=='undefined' && weavePlaying && typeof stopWeave==='function') stopWeave();   // don't leave a weave loop running over a new stack
   const savedLocks={...state.locks};
-  state.locks={finish:false,colors:false,layout:false,fx:false};
+  const anchorKeys=['charmId','imgData','imgW','imgH','imgScale','imgX','imgY','imgRot','imgOpacity','imgOrder'];
+  const savedAnchor={}; anchorKeys.forEach(k=>savedAnchor[k]=state[k]);
+  const keepMotif=!!savedLocks.motif;
+  state.charmId=''; state.imgData=''; state.imgW=0; state.imgH=0;
+  /* Support layers must never grow their own motif; the selected/unlocked
+     motif is resolved once, after the full original Forge stack is built. */
+  state.locks={finish:false,colors:false,layout:false,fx:false,motif:true};
   const K=randInt(4,5);
   const pal=pick(PAL_PRESETS).slice();
-  const archPool=["crest","medallion","column","spire","fan","burst"].sort(()=>Math.random()-0.5);  // distinct per layer
+  const archPool=["crest","column","spire","fan"].sort(()=>Math.random()-0.5);  // distinct, symbol-safe per layer
   const finPool=["chrome","neon","gel","holo","chrome"].sort(()=>Math.random()-0.5);                // mixed materials
   const looks=[]; REELING=true;
   for(let i=0;i<K;i++){
     randomizeEverything();
     if(state.mode==='emblem') state.arch=archPool[i%archPool.length];   // varied silhouettes
+    enforceSymbolSafety();                                             // protect every saved support layer
     state.finish=finPool[i%finPool.length];                            // guaranteed mix of finishes
     state.palette=pal.slice(); applyPalette();                          // one palette across layers
     if(state.finish==='neon'){ state.glow=true; state.glowColor=pal[i%2]; }
@@ -2017,8 +2155,13 @@ function randomComp(){
   COMP=looks.slice(0,K-1);                 // bottom → below-top
   Object.assign(state, looks[K-1]);        // top layer = current design (draws ground: bg + pattern + grain)
   state.markScale=+(0.66+randF(-0.05,0.05)).toFixed(2);
+  if(keepMotif){
+    anchorKeys.forEach(k=>state[k]=savedAnchor[k]);
+    if(savedAnchor.charmId||savedAnchor.imgData) state.imgScale=Math.min(1.4,savedAnchor.imgScale/Math.max(.5,state.markScale));
+  } else randomizeNativeMotif({compensate:true,avoidId:savedAnchor.charmId});
   state.bgMode='gradient'; state.transparent=false;
-  state.bgPat=pick(['dots','grid','lines','cross']); state.bgPatColor=pal[1]; state.bgPatScale=randInt(22,40); state.bgPatOpacity=+randF(0.16,0.28).toFixed(2);  // pattern
+  state.bgPat=pick(['dots','grid','lines']); state.bgPatColor=pal[1]; state.bgPatScale=randInt(22,40); state.bgPatOpacity=+randF(0.16,0.28).toFixed(2);  // pattern
+  enforceSymbolSafety();
   state.grain=+randF(0.18,0.34).toFixed(2);   // texture
   state.locks=savedLocks;
   syncAllUI(); renderCompList(); render(); refreshStrip();
@@ -2069,6 +2212,15 @@ function applyPalette(){
 }
 function isDark(hex){const c=hexToRgb(hex);return (c.r*0.299+c.g*0.587+c.b*0.114)<110;}
 function pcol(){ return pick(state.palette); }
+/* Conservative guardrail: the generator may still be wild, but it never
+   renders the rotational/cross combinations most likely to read as an
+   accidental extremist emblem—including from an older imported look code. */
+function enforceSymbolSafety(){
+  if(state.sym==='radial') state.sym='bi';
+  if(state.arch==='medallion'||state.arch==='burst') state.arch=pick(['crest','column','spire','fan']);
+  if(state.pattern==='cross') state.pattern='none';
+  if(state.bgPat==='cross') state.bgPat='none';
+}
 function randomizeEverything(){
   if(typeof stopMorphPlay==='function') stopMorphPlay();
   const L=state.locks;
@@ -2100,6 +2252,8 @@ function randomizeEverything(){
     state.warp=Math.random()<0.25?randInt(4,14):0; state.glitch=Math.random()<0.2?randInt(4,12):0;
     state.bgPat=pick(['none','none','none','none','dots','lines','grid']); state.bgPatScale=randInt(16,44); state.bgPatOpacity=+randF(0.25,0.6).toFixed(2);
   }
+  if(!L.motif) randomizeNativeMotif();
+  enforceSymbolSafety();
   syncAllUI(); render(); shuffleStrip();
 }
 
@@ -2107,7 +2261,7 @@ function randomizeEverything(){
 function randInt(a,b){return a+Math.floor(Math.random()*(b-a+1));}
 function randF(a,b){return a+Math.random()*(b-a);}
 const VAR_KEYS=["seed","complexity","spikiness","curl","hook","barb","holes","arch"];  // size intentionally NOT rolled
-const EMBLEM_ARCHES=["crest","crest","medallion","column","spire","fan","burst"];       // crest weighted
+const EMBLEM_ARCHES=["crest","crest","column","spire","fan"];       // automatic symbol-safe pool
 function makeVariant(){
   return { seed:randInt(1,999999), complexity:randInt(3,6), spikiness:+randF(0.4,0.9).toFixed(2),
     curl:randInt(-60,60), hook:randInt(40,300), barb:randInt(1,3),
@@ -2115,6 +2269,12 @@ function makeVariant(){
 }
 function applyVariant(v){ VAR_KEYS.forEach(k=>state[k]=v[k]); syncSliders(); segSet('archSeg',state.arch); render(); }
 function randomizeAll(){ if(typeof stopMorphPlay==='function') stopMorphPlay(); applyVariant(makeVariant()); shuffleStrip(); }
+function shuffleIgnoringLocks(){
+  const saved={...state.locks};
+  state.locks={finish:false,colors:false,layout:false,fx:false,motif:false};
+  try{ randomizeEverything(); }
+  finally{ state.locks=saved; syncAllUI(); }
+}
 
 let VARIANTS=[];
 let CYCLE_CUR=null;   // motion currently shown while Cycle mode is on
@@ -2778,7 +2938,7 @@ function init(){
       b.classList.toggle("on", !!state.styles[b.dataset.v]);
       b.onclick=()=>{
         const k=b.dataset.v, on=Object.values(state.styles).filter(Boolean).length;
-        if(state.styles[k] && on<=1 && !state.imgData) return;  // keep ≥1 style unless an image is loaded
+        if(state.styles[k] && on<=1 && !(state.imgData||state.charmId)) return;  // keep ≥1 style unless a motif is loaded
         state.styles[k]=!state.styles[k];
         b.classList.toggle("on", state.styles[k]);
         render(); refreshStrip();
@@ -2830,8 +2990,8 @@ function init(){
   document.getElementById("emClose").onclick=closeExport;
   document.getElementById("exportModal").addEventListener("click",e=>{ if(e.target.id==="exportModal") closeExport(); });
   document.getElementById("reseed").onclick=()=>{state.seed=randInt(1,999999);render();refreshStrip();};
-  document.getElementById("shuffle").onclick=randomizeAll;
-  document.getElementById("randAll").onclick=randomizeEverything;
+  document.getElementById("shuffle").onclick=randomizeEverything;
+  document.getElementById("randAll").onclick=shuffleIgnoringLocks;
   document.getElementById("pinBtn").onclick=pinCurrent;
   document.getElementById("expSheet").onclick=exportContactSheet;
   document.getElementById("expAllZip").onclick=exportGalleryZip;
@@ -2876,12 +3036,19 @@ function init(){
   document.getElementById("reelVariety").onclick=function(){exportReel('variety',this);};
   // ---- image ----
   document.getElementById("imgUpload").onclick=()=>document.getElementById("imgInput").click();
+  document.querySelectorAll('#motifLib [data-charm]').forEach(b=>b.onclick=()=>{
+    const id=b.dataset.charm;
+    if(state.charmId===id){ state.charmId=''; state.imgData=''; }
+    else setNativeMotif(id,{vary:false,order:'top'});
+    syncAllUI(); render(); refreshStrip();
+  });
   document.getElementById("imgInput").onchange=e=>{
     const f=e.target.files&&e.target.files[0]; if(!f) return;
     const r=new FileReader();
     r.onload=()=>{ const im=new Image(); im.onload=()=>{
-      state.imgData=r.result; state.imgW=im.naturalWidth; state.imgH=im.naturalHeight;
-      document.getElementById("imgCtl").style.display="block"; document.getElementById("imgUpload").textContent="Replace PNG…";
+      state.charmId=''; state.imgData=r.result; state.imgW=im.naturalWidth; state.imgH=im.naturalHeight;
+      state.locks.motif=true;  // never discard a user's upload unless they explicitly unlock it
+      syncAllUI();
       render(); refreshStrip(); }; im.src=r.result; };
     r.readAsDataURL(f);
   };
@@ -2889,10 +3056,13 @@ function init(){
   slider("imgRot","imgRot"); slider("imgOpacity","imgOpacity",v=>v.toFixed(2).replace(/0$/,''));
   document.getElementById("imgOrderSeg").querySelectorAll("button").forEach(b=>b.onclick=()=>{
     document.getElementById("imgOrderSeg").querySelectorAll("button").forEach(x=>x.classList.remove("on"));
-    b.classList.add("on"); state.imgOrder=b.dataset.v; render(); refreshStrip();
+    b.classList.add("on"); state.imgOrder=b.dataset.v;
+    if(state.imgOrder==='back'&&state.imgOpacity>.55) state.imgOpacity=.36;
+    if(state.imgOrder!=='back'&&state.imgOpacity<.55) state.imgOpacity=1;
+    syncAllUI(); render(); refreshStrip();
   });
   document.getElementById("imgRemove").onclick=()=>{
-    state.imgData=""; document.getElementById("imgCtl").style.display="none"; document.getElementById("imgUpload").textContent="Upload PNG…";
+    state.charmId=""; state.imgData=""; document.getElementById("imgCtl").style.display="none"; document.getElementById("imgUpload").textContent="Upload a silhouette…";
     if(!Object.values(state.styles).some(Boolean)){state.styles.flame=true;document.querySelectorAll('#styleSeg button').forEach(x=>x.classList.toggle('on',!!state.styles[x.dataset.v]));}
     render(); refreshStrip();
   };
@@ -2958,7 +3128,10 @@ function init(){
     document.getElementById("patRow").style.display=state.pattern==="none"?"none":"flex";
     render(); refreshStrip();
   });
-  renderPresets();
+  /* The guide must never trap the first visit behind a keyboard shortcut. */
+  ['wClose','wGo'].forEach(id=>{ const b=document.getElementById(id); if(b) b.onclick=hideGuide; });
+  { const w=document.getElementById('welcome'); if(w) w.onclick=e=>{ if(e.target===w) hideGuide(); }; }
+  renderPresets(); renderMotifLibrary();
   reorderSections();   // put the creative-loop sections up top, management at the bottom
   // collapsible sections (advanced ones folded by default; Text & Animation stay open — they're the outputs)
   document.querySelectorAll("#controls .sec").forEach(sec=>{
@@ -2973,8 +3146,8 @@ function init(){
     if(e.key==="Escape"){ closeExport(); hideGuide(); return; }
     if(e.target.tagName==="INPUT")return;
     if(e.code==="Space"){e.preventDefault();state.seed=randInt(1,999999);render();refreshStrip();}
-    else if(e.key==="r"||e.key==="R"){randomizeAll();}
-    else if(e.key==="a"||e.key==="A"){randomizeEverything();}
+    else if(e.key==="r"||e.key==="R"){randomizeEverything();}
+    else if(e.key==="a"||e.key==="A"){shuffleIgnoringLocks();}
     else if(e.key==="e"||e.key==="E"){exportSVG();}
   });
   renderFinishCtl(); updGoldRow(); bgPresets(); syncSliders(); render(); shuffleStrip();
