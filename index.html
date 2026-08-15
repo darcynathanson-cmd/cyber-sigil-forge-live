@@ -125,20 +125,42 @@
      border-radius:4px;background:rgba(10,10,14,.72);color:var(--acc);font-size:12px;border:0;cursor:pointer;opacity:0;transition:opacity .1s;padding:0}
   #seriesRow .vt:hover .add{opacity:1}
   #seriesRow .vt .add:hover{background:var(--acc);color:#0b0b0e}
-  #compRow{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:8px}
-  #compRow .vt{aspect-ratio:1;border:1px solid var(--line);border-radius:6px;overflow:hidden;cursor:pointer;background:#0f0f14;position:relative;transition:transform .1s}
-  #compRow .vt:hover{transform:translateY(-2px);border-color:var(--acc)}
-  #compRow .vt svg{width:100%;height:100%;display:block}
-  #compRow .vt .del,#compRow .vt .mv,#compRow .vt .edit{position:absolute;width:15px;height:15px;line-height:14px;text-align:center;border-radius:4px;
-     background:rgba(10,10,14,.75);color:#fff;font-size:10px;border:0;cursor:pointer;opacity:0;transition:opacity .1s;padding:0}
-  #compRow .vt .del{top:1px;right:1px}
-  #compRow .vt .mv.up{top:1px;left:1px}
-  #compRow .vt .mv.dn{top:1px;left:18px}
-  #compRow .vt .edit{bottom:1px;right:1px}
-  #compRow .vt:hover .del,#compRow .vt:hover .mv,#compRow .vt:hover .edit{opacity:1}
-  #compRow .vt .del:hover{background:var(--acc2)} #compRow .vt .mv:hover{background:var(--acc);color:#0b0b0e}
-  #compRow .vt .edit:hover{background:var(--acc);color:#0b0b0e}
-  #compRow .vt.sel{border-color:var(--acc);box-shadow:0 0 0 2px rgba(124,252,0,.35)}
+  #layerEditStatus{margin-top:9px;padding:9px 10px;border:1px solid rgba(124,252,0,.28);border-radius:9px;background:rgba(124,252,0,.07);
+    color:var(--ink);font-size:10.5px;line-height:1.35}
+  #layerEditStatus b{color:var(--acc);font-weight:750}
+  #compRow{display:flex;flex-direction:column;gap:7px;margin-top:7px}
+  #compRow .layerrow{border:1px solid var(--line);border-radius:10px;background:#111118;cursor:pointer;overflow:hidden;
+    transition:border-color .12s,background .12s,box-shadow .12s;position:relative}
+  #compRow .layerrow:hover{border-color:#545461;background:#15151d}
+  #compRow .layerrow:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+  #compRow .layerrow.sel{border-color:var(--acc);background:rgba(124,252,0,.065);box-shadow:0 0 0 1px rgba(124,252,0,.18)}
+  #compRow .layerrow.hidden-layer .layerthumb,#compRow .layerrow.hidden-layer .layermeta{opacity:.43}
+  #compRow .layermain{display:grid;grid-template-columns:58px minmax(0,1fr);gap:10px;align-items:center;padding:8px 9px}
+  #compRow .layerthumb{width:58px;height:58px;border-radius:7px;overflow:hidden;background:#09090d;border:1px solid rgba(255,255,255,.07)}
+  #compRow .layerthumb svg{width:100%;height:100%;display:block}
+  #compRow .layercopy{min-width:0}
+  #compRow .layername{display:flex;align-items:center;gap:6px;color:var(--ink);font-size:11.5px;font-weight:720;line-height:1.15}
+  #compRow .layername .activeflag{display:none;padding:2px 5px;border-radius:4px;background:var(--acc);color:#0b0b0e;font-size:8px;letter-spacing:.08em}
+  #compRow .layerrow.sel .activeflag{display:inline-flex}
+  #compRow .layermeta{margin-top:5px;color:var(--dim);font-size:9.5px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #compRow .layeractions{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border-top:1px solid rgba(255,255,255,.06)}
+  #compRow .layeractions button{min-width:0;min-height:34px;border:0;border-right:1px solid rgba(255,255,255,.06);border-radius:0;
+    background:#17171f;color:var(--dim);font:600 9px/1 var(--font);cursor:pointer;padding:0 2px}
+  #compRow .layeractions button:last-child{border-right:0}
+  #compRow .layeractions button:hover:not(:disabled),#compRow .layeractions button:focus-visible{background:#23232c;color:var(--ink)}
+  #compRow .layeractions button:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+  #compRow .layeractions button:disabled{opacity:.28;cursor:not-allowed}
+  #compRow .layeractions .danger:hover:not(:disabled){background:var(--acc2);color:#fff}
+  #compRow .layeractions .eye.on{color:var(--acc)}
+  .layerScopeNote{display:none;margin:7px 0 0;padding:7px 8px;border-radius:7px;background:rgba(255,79,176,.09);color:#d9a8c5;text-align:left}
+  .sec.layer-scope-disabled .layerScopeNote{display:block}
+  .sec.layer-scope-disabled .secbody{opacity:.38}
+  .row.layer-scope-disabled{opacity:.38}
+  @media(max-width:760px){
+    #compRow .layermain{grid-template-columns:64px minmax(0,1fr);padding:9px 10px}
+    #compRow .layerthumb{width:64px;height:64px}
+    #compRow .layeractions button{min-height:44px;font-size:9.5px}
+  }
   #shuffle{width:100%;display:flex;align-items:center;justify-content:center;gap:7px}
 </style>
 <style id="embedded-fonts">
@@ -178,6 +200,10 @@
   .grp{border-bottom:1px solid var(--line)}
   .grphead{padding:12px 18px;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink);font-weight:700;cursor:pointer;user-select:none;position:relative;background:#17171d}
   .grphead .gi{display:inline-flex;min-width:16px;height:16px;padding:0 3px;border-radius:4px;background:var(--acc);color:#0b0b0e;align-items:center;justify-content:center;font-size:10px;margin-right:8px;vertical-align:-3px;font-weight:800}
+  .grphead .grpcount{position:absolute;right:38px;top:10px;padding:3px 6px;border-radius:99px;background:#292932;color:#bcbcc7;
+    font-size:9px;line-height:1.1;letter-spacing:0;text-transform:none;font-weight:650}
+  .grphead .grpcount.editing{background:rgba(124,252,0,.14);color:var(--acc)}
+  .grphead:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
   .grphead::after{content:'\2212';position:absolute;right:18px;top:11px;color:#6a6a76;font-size:13px}
   .grp.closed .grphead::after{content:'+'}
   .grp.closed .grpbody{display:none}
@@ -264,14 +290,14 @@
           <input type="color" id="pal0" value="#ff2fa0" style="width:32px;height:26px;border:1px solid var(--line);border-radius:6px;background:none;padding:0;cursor:pointer">
           <input type="color" id="pal1" value="#7CFC00" style="width:32px;height:26px;border:1px solid var(--line);border-radius:6px;background:none;padding:0;cursor:pointer">
           <input type="color" id="pal2" value="#0b0b12" style="width:32px;height:26px;border:1px solid var(--line);border-radius:6px;background:none;padding:0;cursor:pointer">
-          <button class="tgl" id="applyPal" style="flex:1">Apply to all</button>
+          <button class="tgl" id="applyPal" style="flex:1">Apply across stack</button>
         </div>
         <div class="presetrow" id="palPresets" style="margin-top:8px"></div>
-        <div class="foothint" style="text-align:left">Set 2–3 colors → Apply, or let Randomize pull from them.</div>
+        <div class="foothint" style="text-align:left">Set 2–3 colors → apply them to every layer, or let Shuffle pull from them.</div>
       </div>
       <div class="sec">
-        <h2>Compose · stack layers</h2>
-        <button class="btn primary" id="addComp" style="width:100%">⊞ Add current as a layer</button>
+        <h2>Compose · edit &amp; arrange layers</h2>
+        <button class="btn primary" id="addComp" style="width:100%">⊞ Duplicate Front layer behind it</button>
         <button class="btn pk" id="randComp" style="width:100%;margin-top:6px" title="Build a fresh random multi-layer stack">🎲 Random comp (auto-stack)</button>
         <div class="row" style="margin-top:8px"><label>Align</label>
           <div class="seg" id="alignSeg" style="flex:1">
@@ -280,11 +306,9 @@
             <button data-v="vaxis">Vertical</button>
           </div>
         </div>
-        <div class="row" style="margin-top:8px"><label>Morph amount</label><input type="range" id="morphAmt" min="0.3" max="2" step="0.05" value="1"><span class="val" id="morphAmtv">1</span></div>
-        <div class="row"><label>Loop secs</label><input type="range" id="morphSecs" min="3" max="10" step="0.5" value="6"><span class="val" id="morphSecsv">6</span></div>
-        <div class="foothint" style="text-align:left;margin-top:2px">Controls the 🎬 Morph clip export (Export menu): how much it contorts &amp; the loop length.</div>
-        <div id="compRow"></div>
-        <div class="foothint" id="compHint" style="text-align:left;margin-top:5px">No layers yet. Build one element (say a frame), Add it, then design the next (a symbol) — they stack into one asset. Each layer keeps its own finish, motion &amp; position; your current design sits on top. Click a layer to edit it.</div>
+        <div id="layerEditStatus" role="status" aria-live="polite"></div>
+        <div id="compRow" role="list" aria-label="Poster layers, front to back"></div>
+        <div class="subhint" id="compHint" style="text-align:left;margin-top:7px">Select any row to edit that layer in place. The list runs from front to back; edits never remove a layer or change its depth.</div>
         <button class="btn ghost" id="clearComp" style="width:100%;margin-top:6px;display:none">Clear stack</button>
         <div class="mini" style="margin-top:10px;display:flex;gap:6px">
           <button class="btn pk" id="copyPoster" style="flex:1" title="Copy the ENTIRE stacked poster (all layers + background) as one code">⧉ Copy full poster code (for Claude)</button>
@@ -573,6 +597,9 @@
           </div>
         </div>
         <div class="row"><label>Speed</label><input type="range" id="animSpeed" min="0.25" max="3" step="0.05" value="1"><span class="val" id="animSpeedv">1.0</span></div>
+        <div class="row"><label>Morph amount</label><input type="range" id="morphAmt" min="0.3" max="2" step="0.05" value="1"><span class="val" id="morphAmtv">1</span></div>
+        <div class="row"><label>Loop secs</label><input type="range" id="morphSecs" min="3" max="10" step="0.5" value="6"><span class="val" id="morphSecsv">6</span></div>
+        <div class="foothint" style="text-align:left;margin-top:2px">Morph amount changes how far the selected shape contorts. Loop secs sets the preview and exported loop length.</div>
         <div class="row" style="margin-top:2px;display:none"><label>Cycle</label>
           <button class="btn ghost" id="animCycle" style="flex:1">🔄 Cycle animations: off</button>
         </div>
@@ -1732,6 +1759,57 @@ function markBlock(animT,opts){
 }
 
 let COMP=[];   // composition stack — each entry is a full look snapshot rendered as its own layer
+/* Layer editing keeps the chosen stack item at its real depth. `state` remains the
+   control target; while a saved layer is active, the true front/top look is parked
+   here and buildSVG interleaves the edited state back into its original slot. */
+let EDIT_LAYER_INDEX=-1, EDIT_TOP_LOOK=null;
+let _layerListRefreshT=0;
+function cloneLayerLook(o){ return JSON.parse(JSON.stringify(o||{})); }
+function isLayerEditing(){ return EDIT_LAYER_INDEX>=0 && EDIT_LAYER_INDEX<COMP.length && !!EDIT_TOP_LOOK; }
+function applyLayerLook(o){
+  if(Object.prototype.hasOwnProperty.call(state,'__hidden') && !Object.prototype.hasOwnProperty.call(o||{},'__hidden')) delete state.__hidden;
+  Object.assign(state,cloneLayerLook(o));
+}
+function syncEditingLayer(){
+  if(!isLayerEditing() || typeof looksState!=='function') return;
+  COMP[EDIT_LAYER_INDEX]=looksState(true);
+  if(typeof _compCache!=='undefined') _compCache.key=null;
+}
+function posterTopLook(withImg){
+  const o=isLayerEditing()?cloneLayerLook(EDIT_TOP_LOOK):looksState(true);
+  if(!withImg) delete o.imgData;
+  return o;
+}
+function resetLayerEditing(){ EDIT_LAYER_INDEX=-1; EDIT_TOP_LOOK=null; }
+function returnToTopSilently(){
+  if(!isLayerEditing()) return;
+  syncEditingLayer(); const top=cloneLayerLook(EDIT_TOP_LOOK); resetLayerEditing(); applyLayerLook(top);
+}
+function selectTopLayer(){
+  returnToTopSilently();
+  syncAllUI(); renderCompList(); render(); refreshStrip();
+}
+function selectCompLayer(i){
+  if(i<0||i>=COMP.length) return;
+  if(isLayerEditing()){
+    if(i===EDIT_LAYER_INDEX){ renderCompList(); return; }
+    syncEditingLayer();
+  } else EDIT_TOP_LOOK=looksState(true);
+  EDIT_LAYER_INDEX=i;
+  applyLayerLook(COMP[i]);
+  state.ratio=EDIT_TOP_LOOK.ratio;
+  syncAllUI(); renderCompList(); render(); refreshStrip();
+}
+function abandonLayerEditing(){ resetLayerEditing(); }
+function setPosterRatio(v){
+  COMP.forEach(layer=>{ layer.ratio=v; });
+  if(isLayerEditing()) EDIT_TOP_LOOK.ratio=v;
+  state.ratio=v; if(isLayerEditing()) syncEditingLayer();
+}
+function scheduleLayerListRefresh(){
+  if(typeof REELING!=='undefined'&&REELING) return;
+  clearTimeout(_layerListRefreshT); _layerListRefreshT=setTimeout(()=>{ if(document.getElementById('compRow')) renderCompList(); },140);
+}
 /* namespace every id / url(#..) / keyframe in a fragment so stacked layers with different
    finishes & motion don't collide (SVG ids are document-global) */
 function prefixIds(str,p){
@@ -1753,34 +1831,44 @@ function prefixIds(str,p){
 let _compCache={key:null,stack:""};
 function buildSVG(forExport,animT,opts){
   opts=opts||{};
+  const editing=!opts.tile&&isLayerEditing();
+  if(editing) syncEditingLayer();
   enforceSymbolSafety();
+  if(editing) syncEditingLayer();
+  const activeLook=looksState(true);
+  let topLook=editing?cloneLayerLook(EDIT_TOP_LOOK):cloneLayerLook(activeLook);
+  applyLayerLook(topLook); enforceSymbolSafety(); topLook=looksState(true);
+  if(editing) EDIT_TOP_LOOK=cloneLayerLook(topLook);
   const base=markBlock(animT,opts);
+  applyLayerLook(activeLook);
   const W=base.W, H=base.H;
   let stack="";
   if(!opts.tile && COMP.length){
     // The stacked layers are static snapshots; only rebuild them when the stack
     // (or canvas / animation frame) actually changes. Toggling the top design
     // then costs one mark, not the whole stack.
-    const _ck = JSON.stringify(COMP)+"|"+(animT==null?"s":animT)+"|"+state.ratio;
+    const _ck = JSON.stringify(COMP)+"|"+(animT==null?"s":animT)+"|"+topLook.ratio;
     if(_compCache.key===_ck){ stack=_compCache.stack; }
     else {
       const saved=looksState(true);
       COMP.forEach((layer,i)=>{
-        Object.assign(state,layer); state.ratio=saved.ratio;   // share the base canvas
+        if(layer&&layer.__hidden) return;
+        applyLayerLook(layer); state.ratio=topLook.ratio;   // share the base canvas
         const b=markBlock(animT,opts);
         stack += prefixIds(`<defs>${b.defs}${b.extraDefs}</defs>${b.animStyle}${b.content}`, 'L'+i+'_');
       });
-      Object.assign(state,saved);
+      applyLayerLook(saved);
       _compCache={key:_ck, stack:stack};
     }
   }
-  const grain=(!opts.tile&&!opts.noGrain&&state.grain>0) ? `<rect x="0" y="0" width="${W}" height="${H}" filter="url(#grainF)" opacity="${(state.grain*0.6).toFixed(2)}" style="mix-blend-mode:overlay"/>` : "";
+  const grain=(!opts.tile&&!opts.noGrain&&topLook.grain>0) ? `<rect x="0" y="0" width="${W}" height="${H}" filter="url(#grainF)" opacity="${(topLook.grain*0.6).toFixed(2)}" style="mix-blend-mode:overlay"/>` : "";
+  const topContent=(!opts.tile&&topLook.__hidden)?"":base.content;
   return `<svg xmlns="${SVGNS}" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" ${forExport?'':'preserveAspectRatio="xMidYMid meet"'}>
   <defs>${base.defs}${base.extraDefs}</defs>
   ${base.animStyle}
   ${base.bgRect}
   ${stack}
-  ${base.content}
+  ${topContent}
   ${grain}
 </svg>`;
 }
@@ -1788,6 +1876,8 @@ function buildSVG(forExport,animT,opts){
 /* ---------- render into stage ---------- */
 let _renderRAF=0;
 function render(){
+  if(isLayerEditing()) syncEditingLayer();
+  scheduleLayerListRefresh();
   if((typeof morphPlaying!=='undefined'&&morphPlaying)||(typeof weavePlaying!=='undefined'&&weavePlaying)) return;   // morph/weave loop owns the stage while playing
   if(_renderRAF) return;                         // coalesce bursts into one paint per frame
   _renderRAF=requestAnimationFrame(()=>{ _renderRAF=0;
@@ -1893,7 +1983,7 @@ function renderPalPresets(){
   PAL_PRESETS.forEach(pal=>{
     const b=document.createElement("div"); b.className="pchip"; b.style.width="34px";
     b.style.background=`linear-gradient(90deg,${pal[0]} 0 33%,${pal[1]} 33% 66%,${pal[2]} 66% 100%)`;
-    b.onclick=()=>{ state.palette=pal.slice(); [0,1,2].forEach(i=>document.getElementById("pal"+i).value=pal[i]); applyPalette(); };
+    b.onclick=()=>{ state.palette=pal.slice(); [0,1,2].forEach(i=>document.getElementById("pal"+i).value=pal[i]); applyPaletteAcrossStack(); };
     row.appendChild(b);
   });
 }
@@ -1946,6 +2036,18 @@ function syncAnimChips(){
     b.classList.toggle('on', v==="none" ? set.length===0 : set.includes(v));
   });
 }
+function syncLayerScopeUI(){
+  const editing=isLayerEditing();
+  document.querySelectorAll('#controls .sec').forEach(sec=>{
+    const h=sec.querySelector('h2'); if(!h||h.textContent.trim()!=='Background') return;
+    sec.classList.toggle('layer-scope-disabled',editing);
+    let note=sec.querySelector('.layerScopeNote');
+    if(!note){ note=document.createElement('div'); note.className='subhint layerScopeNote'; note.textContent='Canvas background belongs to the Front layer. Select Front to change it.'; h.insertAdjacentElement('afterend',note); }
+    sec.querySelectorAll('button,input,select').forEach(el=>{ el.disabled=editing; });
+  });
+  const grain=document.getElementById('grain');
+  if(grain){ grain.disabled=editing; const r=grain.closest('.row'); if(r) r.classList.toggle('layer-scope-disabled',editing); }
+}
 function syncAllUI(){
   syncSliders();
   segSet('modeSeg',state.mode);
@@ -1991,6 +2093,7 @@ function syncAllUI(){
   const ic=document.getElementById('imgCtl'); if(ic) ic.style.display=hasMotif?'block':'none';
   const iu=document.getElementById('imgUpload'); if(iu) iu.textContent=state.imgData?'Replace silhouette…':'Upload a silhouette…';
   document.querySelectorAll('#motifLib [data-charm]').forEach(b=>b.classList.toggle('on',b.dataset.charm===state.charmId));
+  syncLayerScopeUI();
   if(typeof syncDock==='function') syncDock();
 }
 function applyPreset(p){
@@ -2010,7 +2113,8 @@ function loadLookCode(code){ try{ const o=JSON.parse(decodeURIComponent(escape(a
 /* ---- full-poster code: encodes the ENTIRE stack (look + every COMP layer + bg) so Claude can rebuild & animate it exactly ---- */
 function _stripImgO(o){ const c={}; for(const k in o){ if(k==='imgData') continue; c[k]=o[k]; } return c; }
 async function encodePoster(){
-  const payload = { v:1, look:_stripImgO(looksState(false)), comp:(Array.isArray(COMP)?COMP.map(_stripImgO):[]) };
+  if(isLayerEditing()) syncEditingLayer();
+  const payload = { v:1, look:_stripImgO(posterTopLook(false)), comp:(Array.isArray(COMP)?COMP.map(_stripImgO):[]) };
   const json = JSON.stringify(payload);
   try{
     if(typeof CompressionStream!=='undefined'){
@@ -2037,8 +2141,9 @@ async function decodePoster(code){
     }
     const o=JSON.parse(json);
     if(o && o.look){
+      abandonLayerEditing();
       COMP = Array.isArray(o.comp)? o.comp : [];
-      Object.assign(state, o.look);
+      applyLayerLook(o.look);
       if(typeof syncAllUI==='function') syncAllUI();
       if(typeof renderCompList==='function') renderCompList();
       render();
@@ -2116,13 +2221,83 @@ function saveSeriesAll(){
   const b=document.getElementById('saveSeries'); if(b){ const t=b.textContent; b.textContent="✓ Saved to gallery"; setTimeout(()=>b.textContent=t,1000); }
 }
 /* ---- Compose: stack independent layers into one multi-layered asset ---- */
-function addCompLayer(){ COMP.push(looksState(true)); renderCompList(); render(); }
-function removeComp(i){ COMP.splice(i,1); renderCompList(); render(); }
-function clearComp(){ COMP=[]; renderCompList(); render(); }
+function addCompLayer(){
+  returnToTopSilently();
+  COMP.push(looksState(true));
+  revealLayerEditor();
+  renderCompList(); render();
+}
+function removeComp(i){
+  if(i<0||i>=COMP.length) return;
+  if(isLayerEditing()){
+    syncEditingLayer();
+    if(i===EDIT_LAYER_INDEX) returnToTopSilently();
+    else if(i<EDIT_LAYER_INDEX) EDIT_LAYER_INDEX--;
+  }
+  COMP.splice(i,1); renderCompList(); render();
+}
+function removeTopLayer(){
+  returnToTopSilently();
+  if(!COMP.length) return;
+  applyLayerLook(COMP.pop()); resetLayerEditing();
+  syncAllUI(); renderCompList(); render(); refreshStrip();
+}
+function clearComp(){ returnToTopSilently(); COMP=[]; renderCompList(); render(); }
+function duplicateLayer(i,isTop){
+  if(isLayerEditing()) syncEditingLayer();
+  if(isTop) COMP.push(cloneLayerLook(posterTopLook(true)));
+  else if(i>=0&&i<COMP.length){
+    COMP.splice(i+1,0,cloneLayerLook(COMP[i]));
+    if(isLayerEditing()&&EDIT_LAYER_INDEX>i) EDIT_LAYER_INDEX++;
+  }
+  renderCompList(); render();
+}
+function toggleLayerVisibility(i,isTop){
+  if(isTop){
+    if(isLayerEditing()) EDIT_TOP_LOOK.__hidden=!EDIT_TOP_LOOK.__hidden;
+    else state.__hidden=!state.__hidden;
+  } else if(i>=0&&i<COMP.length){
+    if(isLayerEditing()&&EDIT_LAYER_INDEX===i){ state.__hidden=!state.__hidden; syncEditingLayer(); }
+    else COMP[i].__hidden=!COMP[i].__hidden;
+  }
+  _compCache.key=null; renderCompList(); render();
+}
+function swapCompLayers(i,j){
+  if(i<0||j<0||i>=COMP.length||j>=COMP.length) return;
+  if(isLayerEditing()) syncEditingLayer();
+  const t=COMP[i]; COMP[i]=COMP[j]; COMP[j]=t;
+  if(isLayerEditing()){
+    if(EDIT_LAYER_INDEX===i) EDIT_LAYER_INDEX=j;
+    else if(EDIT_LAYER_INDEX===j) EDIT_LAYER_INDEX=i;
+  }
+}
+function moveLayerTowardFront(i){
+  if(i<0||i>=COMP.length) return;
+  if(i<COMP.length-1) swapCompLayers(i,i+1);
+  else {
+    if(isLayerEditing()) syncEditingLayer();
+    const promoted=cloneLayerLook(COMP[i]), oldTop=cloneLayerLook(posterTopLook(true));
+    COMP[i]=oldTop; resetLayerEditing(); applyLayerLook(promoted); syncAllUI();
+  }
+  renderCompList(); render(); refreshStrip();
+}
+function moveLayerTowardBack(i,isTop){
+  if(isTop){
+    returnToTopSilently(); if(!COMP.length) return;
+    const oldTop=looksState(true), newTop=cloneLayerLook(COMP.pop());
+    COMP.push(cloneLayerLook(oldTop)); EDIT_TOP_LOOK=newTop; EDIT_LAYER_INDEX=COMP.length-1; applyLayerLook(oldTop); syncAllUI();
+  } else {
+    if(i<=0||i>=COMP.length) return;
+    swapCompLayers(i,i-1);
+  }
+  renderCompList(); render(); refreshStrip();
+}
+function moveComp(i,d){ if(d>0) moveLayerTowardFront(i); else moveLayerTowardBack(i,false); }
 /* one-click multilayered composition — stacks 3–5 varied motifs on a shared palette */
 function randomComp(){
   if(typeof stopMorphPlay==='function') stopMorphPlay();
   if(typeof weavePlaying!=='undefined' && weavePlaying && typeof stopWeave==='function') stopWeave();   // don't leave a weave loop running over a new stack
+  returnToTopSilently();
   const savedLocks={...state.locks};
   const anchorKeys=['charmId','imgData','imgW','imgH','imgScale','imgX','imgY','imgRot','imgOpacity','imgOrder'];
   const savedAnchor={}; anchorKeys.forEach(k=>savedAnchor[k]=state[k]);
@@ -2164,51 +2339,110 @@ function randomComp(){
   enforceSymbolSafety();
   state.grain=+randF(0.18,0.34).toFixed(2);   // texture
   state.locks=savedLocks;
+  revealLayerEditor();
   syncAllUI(); renderCompList(); render(); refreshStrip();
 }
 /* snap layers onto an axis (keeps the free-form option) */
 function applyAlign(){
   const mode=state.alignMode||'free';
   const fix=o=>{ if(mode==='center'){o.offX=0;o.offY=0;} else if(mode==='vaxis'){o.offX=0;} };
-  COMP.forEach(fix); fix(state);
+  if(isLayerEditing()) syncEditingLayer();
+  COMP.forEach(fix);
+  if(isLayerEditing()){ fix(EDIT_TOP_LOOK); applyLayerLook(COMP[EDIT_LAYER_INDEX]); }
+  else fix(state);
   syncAllUI(); renderCompList(); render();
 }
-function moveComp(i,d){ const j=i+d; if(j<0||j>=COMP.length) return; const t=COMP[i]; COMP[i]=COMP[j]; COMP[j]=t; renderCompList(); render(); }
 function renderCompList(){
   const row=document.getElementById('compRow'); if(!row) return;
-  const cur=looksState(true); row.innerHTML='';
-  COMP.forEach((layer,i)=>{
-    Object.assign(state,layer); state.ratio=cur.ratio;
-    const t=document.createElement('div'); t.className='vt'; t.innerHTML=buildSVG(false,null,{tile:true});
-    t.title='Layer '+(i+1)+' — click to select · ✎ edit · ✕ remove · ↑↓ reorder';
-    t.onclick=()=>{ row.querySelectorAll('.vt.sel').forEach(x=>x.classList.remove('sel')); t.classList.add('sel');
-                    const hh=document.getElementById('compHint'); if(hh) hh.textContent='Layer '+(i+1)+' selected — ✎ Edit pulls it up to tweak (removes it from the stack) · ✕ removes it · ↑↓ reorder.'; };
-    const mk=(cls,txt,ttl,fn)=>{ const b=document.createElement('button'); b.className=cls; b.textContent=txt; b.title=ttl; b.onclick=(e)=>{e.stopPropagation();fn();}; return b; };
-    t.appendChild(mk('del','✕','remove this layer',()=>removeComp(i)));
-    t.appendChild(mk('edit','✎','edit this layer — pulls it up into the current design (removes it from the stack)',()=>{ Object.assign(state,COMP[i]); COMP.splice(i,1); syncAllUI(); renderCompList(); render(); refreshStrip(); }));
-    t.appendChild(mk('mv up','↑','move up (behind→front)',()=>moveComp(i,-1)));
-    t.appendChild(mk('mv dn','↓','move down',()=>moveComp(i,1)));
-    row.appendChild(t);
-  });
-  Object.assign(state,cur);
+  if(isLayerEditing()) syncEditingLayer();
+  const active=looksState(true), top=posterTopLook(true), total=COMP.length+1; row.innerHTML='';
+  const charmNames={mask:'Butterfly mask',seahorses:'Heart seahorses',house:'Enchanted house',tulip:'Chunky tulip',bow:'Ribbon bow',vase:'Heart vase'};
+  const describe=look=>{
+    const subject=look.charmId?(charmNames[look.charmId]||'Motif'):(look.imgData?'Custom silhouette':(look.mode==='frame'?'Frame':((look.arch||'emblem')+' emblem')));
+    const finish=(look.finish||'flat').replace(/^./,c=>c.toUpperCase());
+    const treat=(look.treat||'solid').replace(/^./,c=>c.toUpperCase());
+    return subject+' · '+finish+' · '+treat;
+  };
+  const tileSvg=look=>{ applyLayerLook(look); const svg=buildSVG(false,null,{tile:true}); applyLayerLook(active); return svg; };
+  const button=(txt,cls,title,disabled,fn)=>{ const b=document.createElement('button'); b.type='button'; b.className=cls||''; b.textContent=txt; b.title=title; b.disabled=!!disabled; b.onclick=e=>{e.stopPropagation();fn();}; return b; };
+  const makeRow=(look,i,isTop)=>{
+    const selected=isTop?!isLayerEditing():(isLayerEditing()&&EDIT_LAYER_INDEX===i);
+    const hidden=!!look.__hidden;
+    const card=document.createElement('div'); card.className='layerrow'+(selected?' sel':'')+(hidden?' hidden-layer':'');
+    card.setAttribute('role','listitem'); card.setAttribute('aria-selected',selected?'true':'false'); card.tabIndex=0;
+    const select=()=>isTop?selectTopLayer():selectCompLayer(i);
+    card.onclick=select; card.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault();select();} };
+    const main=document.createElement('div'); main.className='layermain';
+    const thumb=document.createElement('div'); thumb.className='layerthumb'; thumb.innerHTML=tileSvg(look); main.appendChild(thumb);
+    const copy=document.createElement('div'); copy.className='layercopy';
+    const name=document.createElement('div'); name.className='layername';
+    const orderLabel=isTop?('Front · Layer '+total):(i===0?('Back · Layer 1'):('Layer '+(i+1)));
+    name.innerHTML='<span>'+orderLabel+'</span><span class="activeflag">EDITING</span>';
+    const meta=document.createElement('div'); meta.className='layermeta'; meta.textContent=describe(look);
+    if(isTop) meta.textContent+=' · Canvas background';
+    card.setAttribute('aria-label',orderLabel+' — '+meta.textContent+(selected?' — editing':''));
+    copy.appendChild(name); copy.appendChild(meta); main.appendChild(copy); card.appendChild(main);
+    const actions=document.createElement('div'); actions.className='layeractions';
+    const visLabel=isTop?(hidden?'Show art':'Hide art'):(hidden?'Show':'Hide');
+    const visTitle=isTop?(hidden?'Show the Front artwork':'Hide the Front artwork; the canvas background stays'):(hidden?'Show this layer':'Hide this layer');
+    actions.appendChild(button(visLabel,'eye'+(hidden?'':' on'),visTitle,false,()=>toggleLayerVisibility(i,isTop)));
+    actions.appendChild(button('Front ↑','front','Move one step toward the front',isTop,()=>moveLayerTowardFront(i)));
+    actions.appendChild(button('Back ↓','back','Move one step toward the back',(!isTop&&i===0)||(isTop&&!COMP.length),()=>moveLayerTowardBack(i,isTop)));
+    actions.appendChild(button('Copy','copy','Duplicate this layer',false,()=>duplicateLayer(i,isTop)));
+    actions.appendChild(button('Delete','danger','Delete this layer',isTop&&!COMP.length,()=>isTop?removeTopLayer():removeComp(i)));
+    card.appendChild(actions); return card;
+  };
+  row.appendChild(makeRow(top,-1,true));
+  for(let i=COMP.length-1;i>=0;i--) row.appendChild(makeRow(COMP[i],i,false));
+  applyLayerLook(active);
+  const status=document.getElementById('layerEditStatus');
+  if(status) status.innerHTML=isLayerEditing()
+    ? '<b>Editing Layer '+(EDIT_LAYER_INDEX+1)+' of '+total+'</b> · Controls and Shuffle change only this layer. It stays at this depth; the canvas background remains on Front.'
+    : '<b>Editing Front Layer '+total+' of '+total+'</b> · Controls and Shuffle change Front. Select any row below to edit it in place.';
+  const count=document.getElementById('stackLayerCount');
+  if(count){ count.textContent=total+' layer'+(total===1?'':'s'); count.classList.toggle('editing',isLayerEditing()); }
+  syncLayerScopeUI();
   const h=document.getElementById('compHint');
-  if(h) h.textContent = COMP.length
-    ? (COMP.length+' layer'+(COMP.length>1?'s':'')+' stacked (current design on top). Click a layer to edit · ✕ remove · ↑↓ reorder.')
-    : 'No layers yet. Build one element, Add it, then design the next — they stack into one asset. Current design sits on top.';
-  const cc=document.getElementById('clearComp'); if(cc) cc.style.display=COMP.length?'block':'none';
+  if(h) h.textContent=COMP.length
+    ? total+' layers · Front is listed first. Use Front ↑ / Back ↓ to change depth.'
+    : 'One live Front layer. Duplicate it into the stack, then change the Front layer to build depth.';
+  const cc=document.getElementById('clearComp'); if(cc){ cc.style.display=COMP.length?'block':'none'; cc.textContent='Remove all layers behind Front'; }
+}
+function revealLayerEditor(){
+  const grp=document.querySelector('.grp[data-grp="stack"]');
+  if(grp){
+    grp.classList.remove('closed');
+    const head=grp.querySelector('.grphead'); if(head) head.setAttribute('aria-expanded','true');
+  }
+  const sec=[...document.querySelectorAll('#controls .sec')].find(s=>{ const h=s.querySelector('h2'); return h&&/Compose/.test(h.textContent); });
+  if(sec) sec.classList.remove('collapsed');
 }
 /* full chaos roll — everything except the user's text */
 function pick(a){return a[Math.floor(Math.random()*a.length)];}
 function randColor(){return '#'+Math.floor(Math.random()*0x1000000).toString(16).padStart(6,'0');}
 /* push the 3 palette colors into every colour slot (harmonised look) */
-function applyPalette(){
+function remapPaletteSlots(){
   const [a,b2,c]=state.palette, dark=isDark(c)?c:'#0b0b12';
   state.flatFill=a; state.flatStroke=isDark(c)?c:'#000000';
   state.gelHue=a; state.neonColor=a; state.glassTint=b2; state.sprayFill=a; state.sprayGlow=b2;
   state.glowColor=b2; state.echoColor=b2; state.stickerColor=c; state.patColor=c;
   state.twoToneColor=b2; state.chromeTint=b2;
   state.bg=dark; state.bg2=a; state.bgPatColor=b2;
+}
+function applyPalette(){
+  remapPaletteSlots();
   syncAllUI(); render(); refreshStrip();
+}
+function applyPaletteAcrossStack(){
+  if(isLayerEditing()) syncEditingLayer();
+  const editing=isLayerEditing(), editIndex=EDIT_LAYER_INDEX, pal=(state.palette||[]).slice(), top=posterTopLook(true);
+  const recolor=look=>{ applyLayerLook(look); state.palette=pal.slice(); remapPaletteSlots(); return looksState(true); };
+  COMP=COMP.map(recolor);
+  const recoloredTop=recolor(top);
+  if(editing&&editIndex>=0&&editIndex<COMP.length){
+    EDIT_LAYER_INDEX=editIndex; EDIT_TOP_LOOK=recoloredTop; applyLayerLook(COMP[editIndex]);
+  } else { resetLayerEditing(); applyLayerLook(recoloredTop); }
+  _compCache.key=null; syncAllUI(); renderCompList(); render(); refreshStrip();
 }
 function isDark(hex){const c=hexToRgb(hex);return (c.r*0.299+c.g*0.587+c.b*0.114)<110;}
 function pcol(){ return pick(state.palette); }
@@ -2574,7 +2808,7 @@ async function exportMorph(btn){
     const c={spikiness:state.spikiness,curl:state.curl,hook:state.hook,holes:state.holes,edge:state.edge,size:state.size,rotate:state.rotate,bgAngle:state.bgAngle,bgPatScale:state.bgPatScale,echoOffset:state.echoOffset};
     CSFProg.show('Preparing video…','Setting up the render'); const _t0=performance.now();
     const frames=[];
-    if(window.CSF_ANIM_ALL){
+    if(window.CSF_ANIM_ALL||isLayerEditing()){
       // ALL layers animate together: full render each frame — every layer flexes its surface at
       // the SAME phase, so the whole stack "breathes" in sync. Richer, slower.
       for(let i=0;i<total;i++){
@@ -2662,7 +2896,10 @@ function startMorphPlay(){
   _morphT0=performance.now(); updateMorphBtns(true);
   if(_renderRAF){ cancelAnimationFrame(_renderRAF); _renderRAF=0; }   // drop any queued full render so it can't clobber our stage
   const fw=document.getElementById('frameWrap');
+  const editAtDepth=isLayerEditing();
+  if(editAtDepth) syncEditingLayer();
   function buildStage(){
+    if(editAtDepth){ fw.innerHTML=buildSVG(false,0); return null; }
     const bg=buildMorphBG();
     const svgHead=`xmlns="${SVGNS}" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${bg.W} ${bg.H}" preserveAspectRatio="xMidYMid meet"`;
     fw.innerHTML=`<div class="morphStage" style="position:relative;display:inline-block;line-height:0">`
@@ -2676,8 +2913,13 @@ function startMorphPlay(){
     _morphRAF=requestAnimationFrame(loop);
     if(_last>=0 && now-_last<16) return;   // 60fps target — smoother goo/morph
     _last=now;
-    if(!fg || !fg.isConnected) fg=buildStage();   // self-heal if the stage was replaced
     const secs=state.morphSecs||6, ph=((performance.now()-_morphT0)/1000/secs)*2*Math.PI;
+    if(editAtDepth){
+      fw.innerHTML=buildSVG(false,(ph/(2*Math.PI))%1);
+      if(typeof positionGuides==='function') positionGuides();
+      return;
+    }
+    if(!fg || !fg.isConnected) fg=buildStage();   // self-heal if the stage was replaced
     // Surface motion ONLY (ripple / goop in place) — no shape sway: the mark holds its
     // geometry and just flexes its surface via the animT-driven filter.
     fg.innerHTML=buildMorphFG((ph/(2*Math.PI))%1);
@@ -2770,7 +3012,10 @@ function startWeave(lookB){
   _weaveHome={spikiness:state.spikiness,curl:state.curl,hook:state.hook,holes:state.holes,edge:state.edge,size:state.size};   // home geometry to bloom around & return to
   weavePlaying=true; _weaveT0=performance.now(); updateWeaveBtns(true);
   const fw=document.getElementById('frameWrap');
+  const editAtDepth=isLayerEditing();
+  if(editAtDepth) syncEditingLayer();
   function buildStage(){
+    if(editAtDepth){ fw.innerHTML=buildSVG(false,0); return null; }
     const bg=buildMorphBG();
     const svgHead=`xmlns="${SVGNS}" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${bg.W} ${bg.H}" preserveAspectRatio="xMidYMid meet"`;
     fw.innerHTML=`<div class="weaveStage" style="position:relative;display:inline-block;line-height:0">`
@@ -2784,10 +3029,15 @@ function startWeave(lookB){
     _weaveRAF=requestAnimationFrame(loop);
     if(_last>=0 && now-_last<16) return;   // 60fps cap
     _last=now;
-    if(!fg || !fg.isConnected) fg=buildStage();   // self-heal if the stage was replaced
     const secs=Math.max(2,state.morphSecs||6), ph=((performance.now()-_weaveT0)/1000/secs)*2*Math.PI;
     const amt=(state.morphAmt!=null?state.morphAmt:1);
     morphEvolve(state,_weaveHome,ph,amt);                 // continuously reshape hero geometry (no spin)
+    if(editAtDepth){
+      syncEditingLayer(); fw.innerHTML=buildSVG(false,(ph/(2*Math.PI))%1);
+      if(typeof positionGuides==='function') positionGuides();
+      return;
+    }
+    if(!fg || !fg.isConnected) fg=buildStage();   // self-heal if the stage was replaced
     fg.innerHTML=buildMorphFG((ph/(2*Math.PI))%1);        // + surface flow
     if(typeof positionGuides==='function') positionGuides();
   };
@@ -2810,7 +3060,7 @@ function surprisePoster(){ randomComp(); startMorphPlay(); }
 function staticPoster(){ if(typeof stopMorphPlay==='function') stopMorphPlay(); randomComp(); }
 /* Reel format — 9:16 portrait, seamless morph loop */
 function festivalFormat(){
-  state.ratio=0.5625; segSet('ratioSeg',0.5625); if(typeof syncDock==='function') syncDock();
+  setPosterRatio(0.5625); segSet('ratioSeg',0.5625); if(typeof syncDock==='function') syncDock();
   state.morphSecs=5; state.morphAmt=1; state.transparent=false;
   ['morphSecs','morphAmt'].forEach(setRange);
   render(); refreshStrip();
@@ -2928,7 +3178,7 @@ function init(){
     document.getElementById("emblemOpts").style.display = v==="emblem"?"block":"none";
     document.getElementById("frameOpts").style.display  = v==="frame"?"block":"none";
   });
-  seg("ratioSeg","ratio");
+  seg("ratioSeg","ratio",setPosterRatio);
   seg("symSeg","sym",v=>{document.getElementById("radRow").style.display=v==="radial"?"flex":"none";});
   seg("archSeg","arch");
   seg("cornSeg","corners");
@@ -2950,7 +3200,7 @@ function init(){
   slider("offX","offX"); slider("offY","offY"); slider("markScale","markScale",v=>v.toFixed(2).replace(/0$/,'')); slider("rotate","rotate");
   // palette
   [0,1,2].forEach(i=>{const el=document.getElementById("pal"+i); el.oninput=()=>{state.palette[i]=el.value;render();};});
-  document.getElementById("applyPal").onclick=applyPalette;
+  document.getElementById("applyPal").onclick=applyPaletteAcrossStack;
   renderPalPresets();
   // locks
   document.querySelectorAll('#foot [data-lock]').forEach(b=>{b.onclick=()=>{const k=b.dataset.lock;state.locks[k]=!state.locks[k];b.classList.toggle('on',state.locks[k]);if(typeof syncDock==='function')syncDock();};});
@@ -3165,8 +3415,8 @@ init();
   document.body.classList.add("mode-full");
   document.body.classList.remove("simple","mode-simple","mode-festival");
   var GROUPS=[
+    {id:"stack", title:"Layers & stack", icon:"▦", open:true, match:function(t){return /(Compose|Series)/.test(t);}},
     {id:"look", title:"Pick a look", icon:"✧", open:true, match:function(t){return /(Presets|Gallery|Palette)/.test(t)||t==="Finish";}},
-    {id:"stack", title:"Stack & series", icon:"▦", open:false, match:function(t){return /(Compose|Series)/.test(t);}},
     {id:"shape", title:"Shape & form", icon:"◆", open:false, match:function(t){return /(Layout|Position)/.test(t)||t==="Form";}},
     {id:"surface", title:"Surface & FX", icon:"✦", open:false, match:function(t){return /(Background|Light|Layers|FX)/.test(t);}},
     {id:"content", title:"Text & image", icon:"✎", open:false, match:function(t){return /(Text|Image)/.test(t);}},
@@ -3177,8 +3427,12 @@ init();
     var secs=Array.prototype.slice.call(controls.querySelectorAll(":scope > .sec"));
     GROUPS.forEach(function(g){
       var grp=document.createElement("div"); grp.className="grp"+(g.open?"":" closed"); grp.dataset.grp=g.id;
-      var head=document.createElement("div"); head.className="grphead"; head.innerHTML='<span class="gi">'+g.icon+'</span>'+g.title;
-      head.onclick=function(){ grp.classList.toggle("closed"); };
+      var head=document.createElement("div"); head.className="grphead"; head.setAttribute('role','button'); head.tabIndex=0;
+      head.setAttribute('aria-expanded',g.open?'true':'false');
+      head.innerHTML='<span class="gi">'+g.icon+'</span>'+g.title+(g.id==='stack'?'<span class="grpcount" id="stackLayerCount">1 layer</span>':'');
+      function toggleGroup(){ grp.classList.toggle("closed"); head.setAttribute('aria-expanded',grp.classList.contains('closed')?'false':'true'); }
+      head.onclick=toggleGroup;
+      head.onkeydown=function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggleGroup(); } };
       var gb=document.createElement("div"); gb.className="grpbody";
       grp.appendChild(head); grp.appendChild(gb);
       secs.forEach(function(s){ var h=s.querySelector("h2"); if(h && g.match(h.textContent.trim())){ s.classList.remove("collapsed"); gb.appendChild(s); } });
@@ -3186,6 +3440,7 @@ init();
     });
     secs.forEach(function(s){ if(!s.closest(".grp")) controls.appendChild(s); });
   }
+  if(typeof renderCompList==='function'){ try{ renderCompList(); }catch(e){} }
   if(typeof renderMotionStrip==="function"){ try{ renderMotionStrip(); }catch(e){} }
 })();
 </script>
@@ -3210,7 +3465,7 @@ init();
        add/remove/clear/random-comp too — not just look edits. This is the fix for
        "I keep deleting stack layers by accident": every stack change is one Back away. */
     function clone(o){ return JSON.parse(JSON.stringify(o)); }
-    function snap(){ try{ return { look:looksState(true), comp:(typeof COMP!=='undefined'&&Array.isArray(COMP))?COMP.map(clone):[] }; }catch(e){ return null; } }
+    function snap(){ try{ if(typeof syncEditingLayer==='function') syncEditingLayer(); return { look:posterTopLook(true), comp:(typeof COMP!=='undefined'&&Array.isArray(COMP))?COMP.map(clone):[] }; }catch(e){ return null; } }
     function lite(s){ if(!s) return "";
       var L=s.look||s, o={}; for(var k in L){ if(k==='imgData') continue; o[k]=L[k]; }
       var C=(s.comp||[]).map(function(x){ var d={}; for(var k in x){ if(k==='imgData') continue; d[k]=x[k]; } return d; });
@@ -3229,7 +3484,8 @@ init();
       HI=i; NAV=true;
       try{
         var s=HIST[i], look=s.look||s;                // tolerate any legacy plain-look entries
-        Object.assign(state, clone(look));
+        if(typeof abandonLayerEditing==='function') abandonLayerEditing();
+        applyLayerLook(clone(look));
         if(s.comp && Array.isArray(s.comp)) COMP = s.comp.map(clone);   // restore the WHOLE stack
         if(typeof stopMorphPlay==='function' && window.morphPlaying) stopMorphPlay();
         if(typeof syncAllUI==='function') syncAllUI();
@@ -3514,7 +3770,8 @@ init();
     try{
       if((typeof morphPlaying!=='undefined'&&morphPlaying)||(typeof weavePlaying!=='undefined'&&weavePlaying)) return;   // never persist a morph/weave-transient frame
       if(typeof looksState!=='function') return;
-      localStorage.setItem(LOOK_KEY, JSON.stringify(stripImg(looksState(false))));
+      if(typeof syncEditingLayer==='function') syncEditingLayer();
+      localStorage.setItem(LOOK_KEY, JSON.stringify(stripImg(posterTopLook(false))));
       var comp=(typeof COMP!=='undefined'&&Array.isArray(COMP))?COMP.map(stripImg):[];
       localStorage.setItem(COMP_KEY, JSON.stringify(comp));
     }catch(e){}
@@ -3524,7 +3781,8 @@ init();
     try{
       var raw=localStorage.getItem(LOOK_KEY); if(!raw) return;
       var look=JSON.parse(raw); if(!look||typeof look!=='object') return;
-      Object.assign(state, look);
+      if(typeof abandonLayerEditing==='function') abandonLayerEditing();
+      applyLayerLook(look);
       var rawC=localStorage.getItem(COMP_KEY);
       if(rawC){ var comp=JSON.parse(rawC); if(Array.isArray(comp)) COMP=comp; }   // bare COMP = shared global-lexical binding
       if(typeof syncAllUI==='function') syncAllUI();
