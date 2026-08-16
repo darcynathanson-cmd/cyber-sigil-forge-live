@@ -785,7 +785,7 @@
     </div>
     <div class="emGroup">
       <div class="emLbl">Showcase reel · video</div>
-      <button class="tgl" id="animScope" style="width:100%;margin:0 0 8px">🎞 Motion: all layers moving (richer)</button>
+      <button class="tgl on" id="animScope" style="width:100%;margin:0 0 8px" disabled>🎞 Every animated layer is preserved</button>
       <div class="emBtns">
         <button class="btn ghost" id="reelMorph" style="grid-column:1 / -1">🎬 Morph clip — this design, constantly morphing</button>
         <button class="btn ghost" id="reelMotions">🎬 All motions</button>
@@ -1697,7 +1697,7 @@ function markBlock(animT,opts){
   if(imgTopLayer) content+=styledSubject(imgTopLayer,'motifMarkMask');
   // ---- motion (multi-select COMBINE + optional CYCLE) ----
   let animStyle="", extraDefs="";
-  const cx=W/2, cy=H/2, aSp=state.animSpeed||1;
+  const cx=W/2, cy=H/2, aSp=state.animSpeed||1, phaseOffset=Number(opts.motionPhaseOffset)||0;
   const LIQ={boil:  {ty:"turbulence",  bf:0.030, bf2:0.060, sc:14, oct:2, dur:2.4},
              liquid:{ty:"fractalNoise",bf:0.010, bf2:0.017, sc:24, oct:2, dur:5.0},
              morph: {ty:"fractalNoise",bf:0.005, bf2:0.010, sc:48, oct:2, dur:8.0},
@@ -1715,10 +1715,11 @@ function markBlock(animT,opts){
     if(LIQ[A]){
       const P=LIQ[A], dur=(P.dur/aSp).toFixed(2);
       if(animT==null){
-        const bfA = P.bf===P.bf2 ? "" : `<animate attributeName="baseFrequency" values="${P.bf};${P.bf2};${P.bf}" dur="${dur}s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.5;1" keySplines="0.45 0 0.55 1;0.45 0 0.55 1"/>`;
+        const begin=`-${(phaseOffset*Number(dur)).toFixed(2)}s`;
+        const bfA = P.bf===P.bf2 ? "" : `<animate attributeName="baseFrequency" values="${P.bf};${P.bf2};${P.bf}" dur="${dur}s" begin="${begin}" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.5;1" keySplines="0.45 0 0.55 1;0.45 0 0.55 1"/>`;
         const scVals = P.pulse ? `1;${P.sc};1` : `${(P.sc*0.6).toFixed(0)};${(P.sc*1.3).toFixed(0)};${(P.sc*0.6).toFixed(0)}`;
         const scSpl  = P.pulse ? "0.2 0 0.3 1;0.7 0 0.8 1" : "0.45 0 0.55 1;0.45 0 0.55 1";
-        extraDefs+=`<filter id="csfLiq_${uid}" ${reg}><feTurbulence type="${P.ty}" baseFrequency="${P.bf}" numOctaves="${P.oct}" seed="7" result="n">${bfA}</feTurbulence><feDisplacementMap in="SourceGraphic" in2="n" scale="${P.sc}" xChannelSelector="R" yChannelSelector="G"><animate attributeName="scale" values="${scVals}" dur="${dur}s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.5;1" keySplines="${scSpl}"/></feDisplacementMap></filter>`;
+        extraDefs+=`<filter id="csfLiq_${uid}" ${reg}><feTurbulence type="${P.ty}" baseFrequency="${P.bf}" numOctaves="${P.oct}" seed="7" result="n">${bfA}</feTurbulence><feDisplacementMap in="SourceGraphic" in2="n" scale="${P.sc}" xChannelSelector="R" yChannelSelector="G"><animate attributeName="scale" values="${scVals}" dur="${dur}s" begin="${begin}" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.5;1" keySplines="${scSpl}"/></feDisplacementMap></filter>`;
       } else {
         const ph=animT*2*Math.PI, u=0.5-0.5*Math.cos(ph);
         const bf=(P.bf+(P.bf2-P.bf)*u).toFixed(4);
@@ -1730,7 +1731,8 @@ function markBlock(animT,opts){
     } else if(A==="goo"){
       const dur=(3.2/aSp).toFixed(2), goomat="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -10";
       if(animT==null){
-        extraDefs+=`<filter id="csfGoo_${uid}" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceGraphic" stdDeviation="7" result="gb"><animate attributeName="stdDeviation" values="4;12;4" dur="${dur}s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.5;1" keySplines="0.4 0 0.6 1;0.4 0 0.6 1"/></feGaussianBlur><feColorMatrix in="gb" type="matrix" values="${goomat}" result="goo"/><feComposite in="SourceGraphic" in2="goo" operator="atop"/></filter>`;
+        const begin=`-${(phaseOffset*Number(dur)).toFixed(2)}s`;
+        extraDefs+=`<filter id="csfGoo_${uid}" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceGraphic" stdDeviation="7" result="gb"><animate attributeName="stdDeviation" values="4;12;4" dur="${dur}s" begin="${begin}" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.5;1" keySplines="0.4 0 0.6 1;0.4 0 0.6 1"/></feGaussianBlur><feColorMatrix in="gb" type="matrix" values="${goomat}" result="goo"/><feComposite in="SourceGraphic" in2="goo" operator="atop"/></filter>`;
       } else {
         const sd=(4+8*(0.5-0.5*Math.cos(animT*2*Math.PI))).toFixed(2);
         extraDefs+=`<filter id="csfGoo_${uid}" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceGraphic" stdDeviation="${sd}" result="gb"/><feColorMatrix in="gb" type="matrix" values="${goomat}" result="goo"/><feComposite in="SourceGraphic" in2="goo" operator="atop"/></filter>`;
@@ -1743,7 +1745,7 @@ function markBlock(animT,opts){
                 pulse:`@keyframes csfA_${uid}{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}`,
                 flicker:`@keyframes csfA_${uid}{0%,100%{opacity:1}42%{opacity:.5}48%{opacity:.95}54%{opacity:.45}62%{opacity:1}}`}[A];
       const tim=A==="flicker"?`${dur}s steps(1,end)`:A==="spin"?`${dur}s linear`:`${dur}s ease-in-out`;
-      animStyle+=`<style>${kf} #csf_${uid}{transform-box:fill-box;transform-origin:50% 50%;animation:csfA_${uid} ${tim} infinite}</style>`;
+      animStyle+=`<style>${kf} #csf_${uid}{transform-box:fill-box;transform-origin:50% 50%;animation:csfA_${uid} ${tim} infinite;animation-delay:-${(phaseOffset*Number(dur)).toFixed(2)}s}</style>`;
       content=`<g id="csf_${uid}">${content}</g>`;
     } else {
       const t=animT;
@@ -1786,6 +1788,20 @@ function posterTopLook(withImg){
 function lookHasMotion(look){
   if(!look||look.__hidden) return false;
   return !!((Array.isArray(look.animSet)&&look.animSet.length)||(look.animType&&look.animType!=="none"));
+}
+/* Give every layer its own deterministic place in the loop. Without this, several
+   overlaid layers using similar surface filters breathe in perfect lockstep and read
+   as one moving plate. The offset is stable for a saved seed and is also baked into
+   exported frames, so preview and download match. */
+function layerMotionOffset(look,index){
+  const seed=Math.abs(Number(look&&look.seed)||0);
+  return (((seed%997)/997)+((index+1)*0.173))%1;
+}
+function layerMotionTime(t,look,index){
+  return t==null?null:(t+layerMotionOffset(look,index))%1;
+}
+function layerMotionOpts(opts,look,index){
+  return Object.assign({},opts||{},{motionPhaseOffset:layerMotionOffset(look,index)});
 }
 function posterMotionLooks(){
   if(isLayerEditing()) syncEditingLayer();
@@ -1861,7 +1877,8 @@ function buildSVG(forExport,animT,opts){
   let topLook=editing?cloneLayerLook(EDIT_TOP_LOOK):cloneLayerLook(activeLook);
   applyLayerLook(topLook); enforceSymbolSafety(); topLook=looksState(true);
   if(editing) EDIT_TOP_LOOK=cloneLayerLook(topLook);
-  const base=markBlock(animT,opts);
+  const topMotionIndex=COMP.length;
+  const base=markBlock(layerMotionTime(animT,topLook,topMotionIndex),layerMotionOpts(opts,topLook,topMotionIndex));
   applyLayerLook(activeLook);
   const W=base.W, H=base.H;
   let stack="";
@@ -1876,7 +1893,7 @@ function buildSVG(forExport,animT,opts){
       COMP.forEach((layer,i)=>{
         if(layer&&layer.__hidden) return;
         applyLayerLook(layer); state.ratio=topLook.ratio;   // share the base canvas
-        const b=markBlock(animT,opts);
+        const b=markBlock(layerMotionTime(animT,layer,i),layerMotionOpts(opts,layer,i));
         stack += prefixIds(`<defs>${b.defs}${b.extraDefs}</defs>${b.animStyle}${b.content}`, 'L'+i+'_');
       });
       applyLayerLook(saved);
@@ -2829,32 +2846,13 @@ async function exportMorph(btn){
     if(!(state.animSet&&state.animSet.length)){ state.animSet=['liquid']; state.animType='liquid'; }   // ensure flowing surface
     const H=1000,W=Math.round(1000*state.ratio),fps=30,total=Math.max(60,Math.min(300,Math.round((state.morphSecs||6)*fps)));   // exact loop length (honours morphSecs up to 10s)
     const {OW,OH,RS}=reelOutSize(W,H,total);       // 1080×1920 for 9:16 (memory-aware for long loops)
-    const c={spikiness:state.spikiness,curl:state.curl,hook:state.hook,holes:state.holes,edge:state.edge,size:state.size,rotate:state.rotate,bgAngle:state.bgAngle,bgPatScale:state.bgPatScale,echoOffset:state.echoOffset};
     CSFProg.show('Preparing video…','Setting up the render'); const _t0=performance.now();
     const frames=[];
-    if(window.CSF_ANIM_ALL||posterHasStackMotion()){
-      // Render the full poster whenever any saved layer has motion. Each layer keeps
-      // its own motion recipe instead of being flattened into the static fast path.
-      // the SAME phase, so the whole stack "breathes" in sync. Richer, slower.
-      for(let i=0;i<total;i++){
-        frames.push(await rasterFrame(i/total,W,H,RS));
-        if(i%4===0) CSFProg.set(i/total*0.5,'Drawing frames','Frame '+(i+1)+' of '+total);
-      }
-    } else {
-      // Fast: rasterise the static background + stacked layers ONCE, then per frame draw ONLY the
-      // animated top mark over the cached background (~4× faster; the stacked layers hold still).
-      const _svgHead=`xmlns="${SVGNS}" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" width="${OW}" height="${OH}"`;
-      const _bg=buildMorphBG();
-      const _bgBmp=await rasterSVGStr(`<svg ${_svgHead}>${_bg.inner}</svg>`);
-      const _cbake=document.createElement("canvas");_cbake.width=OW;_cbake.height=OH;const _gbake=_cbake.getContext("2d");
-      for(let i=0;i<total;i++){
-        const _fg=await rasterSVGStr(`<svg ${_svgHead}>${buildMorphFG(i/total)}</svg>`);
-        _gbake.clearRect(0,0,OW,OH); _gbake.drawImage(_bgBmp,0,0,OW,OH); _gbake.drawImage(_fg,0,0,OW,OH);
-        frames.push(await createImageBitmap(_cbake));
-        if(_fg.close) _fg.close();
-        if(i%4===0) CSFProg.set(i/total*0.5,'Drawing frames','Frame '+(i+1)+' of '+total);
-      }
-      if(_bgBmp.close) _bgBmp.close();
+    // Always bake the complete poster. The retired top-only fast path flattened the
+    // saved stack and is exactly how independently animated layers disappeared.
+    for(let i=0;i<total;i++){
+      frames.push(await rasterFrame(i/total,W,H,RS));
+      if(i%4===0) CSFProg.set(i/total*0.5,'Drawing all layers','Frame '+(i+1)+' of '+total);
     }
     const cv=document.createElement("canvas");cv.width=OW;cv.height=OH;const ctx=cv.getContext("2d");
     const stream=cv.captureStream(fps);
@@ -2876,7 +2874,7 @@ async function exportMorph(btn){
   if(btn){btn.textContent=label;btn.disabled=false;}
 }
 
-/* ---- LIVE morph playback: watch the current design/stack morph on the canvas ---- */
+/* ---- LIVE surface playback: every assigned layer animates in one SVG ---- */
 let morphPlaying=false, _morphRAF=0, _morphHome=null, _morphComp=null, _morphT0=0;
 function syncMotionSeg(){ /* segmented [Still·Animate·Morph]: exactly one 'on'. Animate/Morph get 'on' from update*Btns; Still is 'on' when no loop runs. */
   var mp=(typeof morphPlaying!=='undefined'&&morphPlaying);
@@ -2884,14 +2882,10 @@ function syncMotionSeg(){ /* segmented [Still·Animate·Morph]: exactly one 'on'
   var s=document.getElementById('footPosterStatic'); if(s) s.classList.toggle('on', !mp && !wp);
 }
 function updateMorphBtns(on){ document.querySelectorAll('.morphPlayBtn').forEach(b=>{ b.textContent=on?'⏸ Stop':'▶ Animate'; b.classList.toggle('on',on); }); syncMotionSeg(); }
-/* ---- morph-play render split (task #12: smooth heavy stacks) ----
-   The stacked composition layers are the expensive part: rebuilding + reparsing
-   every layer's geometry each frame drops heavy stacks to ~4fps. Instead we build
-   the whole background (bg fill + stacked layers) ONCE with self-running SMIL surface
-   motion, parse it into a persistent <svg> that we never touch again, and each frame
-   re-render ONLY the top mark (numeric morph) into a second overlaid <svg>. Per-frame
-   cost collapses from N marks to 1, and the browser reparses ~1 mark instead of the
-   whole 6MB stack. The stacked layers still flow (SMIL); only the hero mark shape-morphs. */
+/* The older two-SVG fast path numerically refreshed only the hero layer. Even though
+   stacked layers retained SMIL tags, the result read as one animated layer and was
+   easy to flatten accidentally. Animate now mounts one complete SVG once: every saved
+   layer runs its own namespaced filter and phase, with no frame-by-frame geometry churn. */
 function buildMorphBG(){
   const base=markBlock(null,{});                       // top state -> bg fill + bg/grad defs
   const W=base.W, H=base.H;
@@ -2922,36 +2916,9 @@ function startMorphPlay(){
   _morphT0=performance.now(); updateMorphBtns(true);
   if(_renderRAF){ cancelAnimationFrame(_renderRAF); _renderRAF=0; }   // drop any queued full render so it can't clobber our stage
   const fw=document.getElementById('frameWrap');
-  const editAtDepth=isLayerEditing();
-  if(editAtDepth) syncEditingLayer();
-  function buildStage(){
-    if(editAtDepth){ fw.innerHTML=buildSVG(false,0); return null; }
-    const bg=buildMorphBG();
-    const svgHead=`xmlns="${SVGNS}" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${bg.W} ${bg.H}" preserveAspectRatio="xMidYMid meet"`;
-    fw.innerHTML=`<div class="morphStage" style="position:relative;display:inline-block;line-height:0">`
-      +`<svg id="csfMorphBg" ${svgHead}>${bg.inner}</svg>`
-      +`<svg id="csfMorphFg" ${svgHead} style="position:absolute;inset:0;width:100%;height:100%"></svg></div>`;
-    return document.getElementById('csfMorphFg');
-  }
-  let fg=buildStage(), _last=-1;
-  const loop=(now)=>{
-    if(!morphPlaying) return;
-    _morphRAF=requestAnimationFrame(loop);
-    if(_last>=0 && now-_last<16) return;   // 60fps target — smoother goo/morph
-    _last=now;
-    const secs=state.morphSecs||6, ph=((performance.now()-_morphT0)/1000/secs)*2*Math.PI;
-    if(editAtDepth){
-      fw.innerHTML=buildSVG(false,(ph/(2*Math.PI))%1);
-      if(typeof positionGuides==='function') positionGuides();
-      return;
-    }
-    if(!fg || !fg.isConnected) fg=buildStage();   // self-heal if the stage was replaced
-    // Surface motion ONLY (ripple / goop in place) — no shape sway: the mark holds its
-    // geometry and just flexes its surface via the animT-driven filter.
-    fg.innerHTML=buildMorphFG((ph/(2*Math.PI))%1);
-    if(typeof positionGuides==='function') positionGuides();
-  };
-  _morphRAF=requestAnimationFrame(loop);
+  if(isLayerEditing()) syncEditingLayer();
+  fw.innerHTML=buildSVG(false,null,{allLayerMotion:true});
+  if(typeof positionGuides==='function') positionGuides();
 }
 function stopMorphPlay(){
   if(!morphPlaying) return;
@@ -3305,10 +3272,9 @@ function init(){
   document.getElementById("expPng").onclick=()=>exportPNG(3);
   document.getElementById("expPng4").onclick=()=>exportPNG(4);
   document.getElementById("reelMorph").onclick=function(){exportMorph(this);};
-  window.CSF_ANIM_ALL=true;   // default: all stacked layers animate together (richer). Toggle → top-only (faster).
+  window.CSF_ANIM_ALL=true;   // all stacked layers always animate together; top-only export was retired.
   (function(){ const b=document.getElementById('animScope'); if(!b) return;
-    const upd=()=>{ b.textContent = window.CSF_ANIM_ALL ? '🎞 Motion: all layers moving (richer)' : '🎞 Motion: top layer only (faster)'; b.classList.toggle('on', window.CSF_ANIM_ALL); };
-    b.onclick=()=>{ window.CSF_ANIM_ALL=!window.CSF_ANIM_ALL; upd(); }; upd(); })();
+    b.textContent='🎞 Every animated layer is preserved'; b.classList.add('on'); b.disabled=true; })();
   document.getElementById("reelMotions").onclick=function(){exportReel('motions',this);};
   document.getElementById("reelVariety").onclick=function(){exportReel('variety',this);};
   // ---- image ----
@@ -3832,4 +3798,3 @@ init();
 
 </body>
 </html>
-
