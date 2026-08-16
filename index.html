@@ -1783,17 +1783,36 @@ function posterTopLook(withImg){
   if(!withImg) delete o.imgData;
   return o;
 }
+function lookHasMotion(look){
+  if(!look||look.__hidden) return false;
+  return !!((Array.isArray(look.animSet)&&look.animSet.length)||(look.animType&&look.animType!=="none"));
+}
+function posterMotionLooks(){
+  if(isLayerEditing()) syncEditingLayer();
+  return [posterTopLook(true)].concat(COMP).filter(lookHasMotion);
+}
+function posterHasMotion(){ return posterMotionLooks().length>0; }
+function posterHasStackMotion(){
+  if(isLayerEditing()) syncEditingLayer();
+  return COMP.some(lookHasMotion);
+}
+function stopLayerMotionPreview(){
+  if(typeof morphPlaying!=="undefined"&&morphPlaying&&typeof stopMorphPlay==="function") stopMorphPlay();
+  if(typeof weavePlaying!=="undefined"&&weavePlaying&&typeof stopWeave==="function") stopWeave();
+}
 function resetLayerEditing(){ EDIT_LAYER_INDEX=-1; EDIT_TOP_LOOK=null; }
 function returnToTopSilently(){
   if(!isLayerEditing()) return;
   syncEditingLayer(); const top=cloneLayerLook(EDIT_TOP_LOOK); resetLayerEditing(); applyLayerLook(top);
 }
 function selectTopLayer(){
+  stopLayerMotionPreview();
   returnToTopSilently();
   syncAllUI(); renderCompList(); render(); refreshStrip();
 }
 function selectCompLayer(i){
   if(i<0||i>=COMP.length) return;
+  stopLayerMotionPreview();
   if(isLayerEditing()){
     if(i===EDIT_LAYER_INDEX){ renderCompList(); return; }
     syncEditingLayer();
@@ -2364,7 +2383,9 @@ function renderCompList(){
     const subject=look.charmId?(charmNames[look.charmId]||'Motif'):(look.imgData?'Custom silhouette':(look.mode==='frame'?'Frame':((look.arch||'emblem')+' emblem')));
     const finish=(look.finish||'flat').replace(/^./,c=>c.toUpperCase());
     const treat=(look.treat||'solid').replace(/^./,c=>c.toUpperCase());
-    return subject+' · '+finish+' · '+treat;
+    const motions=(Array.isArray(look.animSet)&&look.animSet.length)?look.animSet:(look.animType&&look.animType!=='none'?[look.animType]:[]);
+    const motion=motions.length?motions.map(v=>v.replace(/^./,c=>c.toUpperCase())).join(' + '):'Still';
+    return subject+' · '+finish+' · '+treat+' · Motion: '+motion;
   };
   const tileSvg=look=>{ applyLayerLook(look); const svg=buildSVG(false,null,{tile:true}); applyLayerLook(active); return svg; };
   const button=(txt,cls,title,disabled,fn)=>{ const b=document.createElement('button'); b.type='button'; b.className=cls||''; b.textContent=txt; b.title=title; b.disabled=!!disabled; b.onclick=e=>{e.stopPropagation();fn();}; return b; };
@@ -2695,7 +2716,7 @@ const CSFProg=(function(){
 })();
 async function exportWEBM(btn){
   if(typeof weavePlaying!=='undefined' && weavePlaying) return exportWeave(btn);   // weaving → bake the A→B→A loop
-  if(!(state.animSet&&state.animSet.length)&&(!state.animType||state.animType==="none")){ alert("Pick at least one Motion first (Animation section). The video bakes the combined motions; Cycle mode isn't recorded."); return; }
+  if(!posterHasMotion()){ alert("Add Motion to at least one visible layer first. Video export keeps the separate motion assigned to every layer."); return; }
   if(_EXPORTING){ alert("Hold on — an export is already running. Let it finish before starting another."); return; }
   const label=btn?btn.textContent:""; if(btn){btn.textContent="Rendering…";btn.disabled=true;}
   _EXPORTING=true; REELING=true;   // freeze the design: bake ONLY the current look, no concurrent mutation
@@ -2811,8 +2832,9 @@ async function exportMorph(btn){
     const c={spikiness:state.spikiness,curl:state.curl,hook:state.hook,holes:state.holes,edge:state.edge,size:state.size,rotate:state.rotate,bgAngle:state.bgAngle,bgPatScale:state.bgPatScale,echoOffset:state.echoOffset};
     CSFProg.show('Preparing video…','Setting up the render'); const _t0=performance.now();
     const frames=[];
-    if(window.CSF_ANIM_ALL||isLayerEditing()){
-      // ALL layers animate together: full render each frame — every layer flexes its surface at
+    if(window.CSF_ANIM_ALL||posterHasStackMotion()){
+      // Render the full poster whenever any saved layer has motion. Each layer keeps
+      // its own motion recipe instead of being flattened into the static fast path.
       // the SAME phase, so the whole stack "breathes" in sync. Richer, slower.
       for(let i=0;i<total;i++){
         frames.push(await rasterFrame(i/total,W,H,RS));
@@ -2894,8 +2916,9 @@ function startMorphPlay(){
   if(typeof weavePlaying!=='undefined' && weavePlaying && typeof stopWeave==='function') stopWeave();   // motion modes are mutually exclusive
   morphPlaying=true;
   _morphHome={spikiness:state.spikiness,curl:state.curl,hook:state.hook,holes:state.holes,edge:state.edge,size:state.size,rotate:state.rotate,bgAngle:state.bgAngle,bgPatScale:state.bgPatScale,echoOffset:state.echoOffset};
-  _morphComp=COMP.map(c=>JSON.parse(JSON.stringify(c)));
   if(!(state.animSet&&state.animSet.length)){ state.animSet=['liquid']; state.animType='liquid'; }
+  if(isLayerEditing()) syncEditingLayer();
+  _morphComp=COMP.map(c=>JSON.parse(JSON.stringify(c)));
   _morphT0=performance.now(); updateMorphBtns(true);
   if(_renderRAF){ cancelAnimationFrame(_renderRAF); _renderRAF=0; }   // drop any queued full render so it can't clobber our stage
   const fw=document.getElementById('frameWrap');
@@ -2934,7 +2957,8 @@ function stopMorphPlay(){
   if(!morphPlaying) return;
   morphPlaying=false; cancelAnimationFrame(_morphRAF);
   if(_morphHome) Object.assign(state,_morphHome);
-  if(_morphComp) COMP=_morphComp;
+  if(isLayerEditing()) syncEditingLayer();
+  _morphComp=null;
   updateMorphBtns(false); syncAllUI(); render(); renderCompList();
 }
 function toggleMorphPlay(){ morphPlaying?stopMorphPlay():startMorphPlay(); }
@@ -3808,3 +3832,4 @@ init();
 
 </body>
 </html>
+
