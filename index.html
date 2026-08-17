@@ -576,9 +576,9 @@
       </div>
 
       <div class="sec">
-        <h2>Animation</h2>
+        <h2>Animation preview</h2>
         <button class="btn morphPlayBtn" id="animPlay" style="width:100%;background:var(--acc2);color:#fff;font-weight:700">▶ Animate</button>
-        <div class="foothint" style="text-align:left;margin:6px 0 8px">Pick a flavor below, then <b>Animate</b> to preview the morph — same one-tap play/stop as Simple mode. <b>Combine</b> &amp; <b>Cycle</b> further down are optional power controls.</div>
+        <div class="foothint" style="text-align:left;margin:6px 0 8px">Choose a generic surface motion, then <b>Animate</b> to judge the composition. Final animation is art-directed separately from the Forge.</div>
         <div class="row" style="align-items:flex-start;margin-top:0"><label style="margin-top:5px">Motion</label>
           <div class="chips" id="animChips" style="flex:1">
             <button data-v="none" class="on">None</button>
@@ -589,10 +589,10 @@
             <button data-v="ripple">Ripple</button>
             <button data-v="shimmer">Shimmer</button>
             <button data-v="pulse">Pulse</button>
-            <button data-v="spin">Spin</button>
             <button data-v="flicker">Flicker</button>
           </div>
         </div>
+        <div class="subhint" id="legacyMotionHint" style="display:none;margin-top:4px">This imported poster uses an older motion recipe. It will still play and export; choose a preview motion above only if you want to replace it.</div>
         <div class="row" style="align-items:flex-start;margin-top:6px"><label style="margin-top:5px">Try a motion</label>
           <div style="flex:1">
             <div id="motionStrip"></div>
@@ -602,7 +602,7 @@
         <div class="row"><label>Speed</label><input type="range" id="animSpeed" min="0.25" max="3" step="0.05" value="1"><span class="val" id="animSpeedv">1.0</span></div>
         <div class="row"><label>Morph amount</label><input type="range" id="morphAmt" min="0.3" max="2" step="0.05" value="1"><span class="val" id="morphAmtv">1</span></div>
         <div class="row"><label>Loop secs</label><input type="range" id="morphSecs" min="3" max="10" step="0.5" value="6"><span class="val" id="morphSecsv">6</span></div>
-        <div class="foothint" style="text-align:left;margin-top:2px">Morph amount changes how far the selected shape contorts. Loop secs sets the preview and exported loop length.</div>
+        <div class="foothint" style="text-align:left;margin-top:2px">Morph amount changes how far the selected shape contorts. Loop secs sets the preview and proof-video loop length.</div>
         <div class="row" style="margin-top:2px;display:none"><label>Cycle</label>
           <button class="btn ghost" id="animCycle" style="flex:1">🔄 Cycle animations: off</button>
         </div>
@@ -771,35 +771,35 @@
     <div class="emHead"><span>Export</span><button id="emClose" class="emX" title="Close">✕</button></div>
     <div class="emGroup">
       <button class="btn ghost festBtn" id="festModal" style="width:100%">🎬 Set Reel format (9:16 portrait loop)</button>
-      <div class="emHint" style="margin-top:6px">Sets 9:16 portrait &amp; a seamless loop. Make your piece, then export the 🎬 Morph clip — a vertical video for Reels, Stories or TikTok.</div>
+      <div class="emHint" style="margin-top:6px">Sets 9:16 portrait and a seamless study loop. Use the Morph study below to test a vertical composition.</div>
     </div>
     <div class="emGroup">
       <div class="emLbl">This design</div>
       <div class="emBtns">
         <button class="btn ghost" id="expSvg">SVG · vector</button>
-        <button class="btn ghost" id="expWebm">Video · assigned motion</button>
+        <button class="btn ghost" id="expWebm">Proof video · preview motion</button>
         <button class="btn ghost" id="expPng">PNG ×3</button>
         <button class="btn ghost" id="expPng4">PNG ×4</button>
       </div>
       <button class="tgl" id="transToggle2" style="width:100%;margin-top:8px">Transparent background: off</button>
     </div>
     <div class="emGroup">
-      <div class="emLbl">Video render</div>
-      <div class="seg" id="videoQualitySeg" role="group" aria-label="Video render quality" style="width:100%">
+      <div class="emLbl">Motion proof quality</div>
+      <div class="seg" id="videoQualitySeg" role="group" aria-label="Motion proof quality" style="width:100%">
         <button class="on" data-v="proof">Quick proof · 960p</button>
-        <button data-v="final">Final · 1920p</button>
+        <button data-v="final">High-res proof · 1920p</button>
       </div>
       <div class="emHint" id="videoQualityHint" style="margin-top:7px"><b>Quick proof</b> is for tuning several moving layers. It uses less memory and should finish first.</div>
     </div>
     <div class="emGroup">
-      <div class="emLbl">Showcase reel · video</div>
+      <div class="emLbl">Motion studies · video</div>
       <button class="tgl on" id="animScope" style="width:100%;margin:0 0 8px" disabled>🎞 Every animated layer is preserved</button>
       <div class="emBtns">
-        <button class="btn ghost" id="reelMorph" style="grid-column:1 / -1">🎬 Morph clip — this design, constantly morphing</button>
-        <button class="btn ghost" id="reelMotions">🎬 All motions</button>
-        <button class="btn ghost" id="reelVariety">🎬 Variety mix</button>
+        <button class="btn ghost" id="reelMorph" style="grid-column:1 / -1">🎬 Morph study — this design</button>
+        <button class="btn ghost" id="reelMotions">🎬 Motion sampler</button>
+        <button class="btn ghost" id="reelVariety">🎬 Variation sampler</button>
       </div>
-      <div class="emHint" style="margin-top:6px"><b>Morph clip</b> = your current design (all of it) endlessly contorting — seamless loop. <b>All motions</b> = this design through every motion. <b>Variety mix</b> = 8 fresh looks (keeps anything Locked). Dense multi-layer finals can take minutes; run a Quick proof first.</div>
+      <div class="emHint" style="margin-top:6px">These are motion studies for judging a composition, not the final art-directed animation. <b>Morph study</b> contorts this design; the samplers compare motion or fresh locked variations.</div>
     </div>
     <div class="emGroup">
       <div class="emLbl">Your gallery</div>
@@ -808,7 +808,7 @@
         <button class="btn ghost" id="expAllZip">⬇ All as SVG (zip)</button>
       </div>
     </div>
-    <div class="emHint">SVG is editable vector · PNG for quick sharing · Video preserves every layer’s assigned motion · Contact sheet &amp; zip export your whole saved gallery.</div>
+    <div class="emHint">SVG is editable vector · PNG for sharing and print prep · Proof video preserves preview motion · Final animation can be art-directed separately from the Forge.</div>
   </div>
 </div>
 
@@ -1706,9 +1706,11 @@ function markBlock(animT,opts){
   // ---- motion (multi-select COMBINE + optional CYCLE) ----
   let animStyle="", extraDefs="";
   const cx=W/2, cy=H/2, aSp=state.animSpeed||1, phaseOffset=Number(opts.motionPhaseOffset)||0;
+  const motionLoopSecs=Math.max(3,Math.min(10,Number(state.morphSecs)||6));
   const LIQ={boil:  {ty:"turbulence",  bf:0.030, bf2:0.060, sc:14, oct:2, dur:2.4},
              liquid:{ty:"fractalNoise",bf:0.010, bf2:0.017, sc:24, oct:2, dur:5.0},
              morph: {ty:"fractalNoise",bf:0.005, bf2:0.010, sc:48, oct:2, dur:8.0},
+             slowmorph:{ty:"fractalNoise",bf:0.0035,bf2:0.007,sc:34,oct:2,dur:10.0},
              ripple:{ty:"fractalNoise",bf:0.012, bf2:0.012, sc:34, oct:2, dur:3.0, pulse:1}};
   // active motions: cycle (one at a time) for live preview, else the combined set
   let acts=[];
@@ -1718,18 +1720,23 @@ function markBlock(animT,opts){
                 : (state.animType&&state.animType!=="none" ? [state.animType] : []); }
   }
   acts.forEach((A,i)=>{
-    if(!A||A==="none"||(!LIQ[A]&&A!=="goo"&&A!=="shimmer"&&A!=="spin"&&A!=="pulse"&&A!=="flicker")) return;
+    if(!A||A==="none"||(!LIQ[A]&&A!=="goo"&&A!=="flap"&&A!=="wriggle"&&A!=="shimmer"&&A!=="spin"&&A!=="pulse"&&A!=="flicker")) return;
     const uid="m"+i, reg='x="-35%" y="-35%" width="170%" height="170%"';
     if(LIQ[A]){
-      const P=LIQ[A], dur=(P.dur/aSp).toFixed(2);
+      const P=LIQ[A], dur=(A==="slowmorph"?motionLoopSecs:(P.dur/aSp)).toFixed(2);
       if(animT==null){
         const begin=`-${(phaseOffset*Number(dur)).toFixed(2)}s`;
-        const bfA = P.bf===P.bf2 ? "" : `<animate attributeName="baseFrequency" values="${P.bf};${P.bf2};${P.bf}" dur="${dur}s" begin="${begin}" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.5;1" keySplines="0.45 0 0.55 1;0.45 0 0.55 1"/>`;
-        const scVals = P.pulse ? `1;${P.sc};1` : `${(P.sc*0.6).toFixed(0)};${(P.sc*1.3).toFixed(0)};${(P.sc*0.6).toFixed(0)}`;
-        const scSpl  = P.pulse ? "0.2 0 0.3 1;0.7 0 0.8 1" : "0.45 0 0.55 1;0.45 0 0.55 1";
-        extraDefs+=`<filter id="csfLiq_${uid}" ${reg}><feTurbulence type="${P.ty}" baseFrequency="${P.bf}" numOctaves="${P.oct}" seed="7" result="n">${bfA}</feTurbulence><feDisplacementMap in="SourceGraphic" in2="n" scale="${P.sc}" xChannelSelector="R" yChannelSelector="G"><animate attributeName="scale" values="${scVals}" dur="${dur}s" begin="${begin}" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.5;1" keySplines="${scSpl}"/></feDisplacementMap></filter>`;
+        const held=A==="slowmorph", keyTimes=held?"0;0.43;0.57;1":"0;0.5;1";
+        const keySplines=held?"0.45 0 0.55 1;0 0 1 1;0.45 0 0.55 1":"0.45 0 0.55 1;0.45 0 0.55 1";
+        const bfVals=held?`${P.bf};${P.bf2};${P.bf2};${P.bf}`:`${P.bf};${P.bf2};${P.bf}`;
+        const bfA = P.bf===P.bf2 ? "" : `<animate attributeName="baseFrequency" values="${bfVals}" dur="${dur}s" begin="${begin}" repeatCount="indefinite" calcMode="spline" keyTimes="${keyTimes}" keySplines="${keySplines}"/>`;
+        const lo=(P.sc*0.6).toFixed(0), hi=(P.sc*1.3).toFixed(0);
+        const scVals = P.pulse ? `1;${P.sc};1` : held?`${lo};${hi};${hi};${lo}`:`${lo};${hi};${lo}`;
+        const scSpl  = P.pulse ? "0.2 0 0.3 1;0.7 0 0.8 1" : keySplines;
+        extraDefs+=`<filter id="csfLiq_${uid}" ${reg}><feTurbulence type="${P.ty}" baseFrequency="${P.bf}" numOctaves="${P.oct}" seed="7" result="n">${bfA}</feTurbulence><feDisplacementMap in="SourceGraphic" in2="n" scale="${P.sc}" xChannelSelector="R" yChannelSelector="G"><animate attributeName="scale" values="${scVals}" dur="${dur}s" begin="${begin}" repeatCount="indefinite" calcMode="spline" keyTimes="${keyTimes}" keySplines="${scSpl}"/></feDisplacementMap></filter>`;
       } else {
-        const ph=animT*2*Math.PI, u=0.5-0.5*Math.cos(ph);
+        const ph=animT*2*Math.PI, p=((animT%1)+1)%1, smooth=x=>x*x*(3-2*x);
+        const u=A==="slowmorph"?(p<.43?smooth(p/.43):p<.57?1:1-smooth((p-.57)/.43)):(0.5-0.5*Math.cos(ph));
         const bf=(P.bf+(P.bf2-P.bf)*u).toFixed(4);
         const sc=P.pulse ? (1+(P.sc-1)*Math.abs(Math.sin(ph))).toFixed(1) : (P.sc*(0.6+0.7*u)).toFixed(1);
         const seed=7;   // fixed seed — smooth organic boil (no discrete noise jumps)
@@ -1746,6 +1753,39 @@ function markBlock(animT,opts){
         extraDefs+=`<filter id="csfGoo_${uid}" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceGraphic" stdDeviation="${sd}" result="gb"/><feColorMatrix in="gb" type="matrix" values="${goomat}" result="goo"/><feComposite in="SourceGraphic" in2="goo" operator="atop"/></filter>`;
       }
       content=`<g filter="url(#csfGoo_${uid})">${content}</g>`;
+    } else if(A==="flap"){
+      /* A frontal bilateral wing beat: split the layer at two fixed hinges so
+         the center/body stays planted while the wings close. One progress value
+         drives both sides; there is no whole-object rotation or sway. */
+      const dur=motionLoopSecs.toFixed(2);
+      const bodyHalf=Math.max(28,Math.min(48,W*0.055)), leftHinge=cx-bodyHalf, rightHinge=cx+bodyHalf;
+      extraDefs+=`<clipPath id="csfFlapLeft_${uid}"><rect x="-${W}" y="-${H}" width="${W+leftHinge}" height="${H*3}"/></clipPath><clipPath id="csfFlapBody_${uid}"><rect x="${leftHinge}" y="-${H}" width="${bodyHalf*2}" height="${H*3}"/></clipPath><clipPath id="csfFlapRight_${uid}"><rect x="${rightHinge}" y="-${H}" width="${W*2-rightHinge}" height="${H*3}"/></clipPath>`;
+      if(animT==null){
+        const delay=(phaseOffset*Number(dur)).toFixed(2);
+        animStyle+=`<style>@keyframes csfFlap_${uid}{0%,4%,25%,39%,52%,78%,100%{transform:scaleX(1) scaleY(1)}12%,61%{transform:scaleX(.72) scaleY(1.018)}31%{transform:scaleX(.866) scaleY(1.009)}} #csfFlapL_${uid},#csfFlapR_${uid}{transform-box:view-box;animation:csfFlap_${uid} ${dur}s cubic-bezier(.23,.88,.26,.92) infinite;animation-delay:-${delay}s} #csfFlapL_${uid}{transform-origin:${leftHinge}px ${cy}px} #csfFlapR_${uid}{transform-origin:${rightHinge}px ${cy}px}</style>`;
+        content=`<g clip-path="url(#csfFlapLeft_${uid})"><g id="csfFlapL_${uid}">${content}</g></g><g clip-path="url(#csfFlapRight_${uid})"><g id="csfFlapR_${uid}">${content}</g></g><g clip-path="url(#csfFlapBody_${uid})">${content}</g>`;
+      } else {
+        const phase=((animT%1)+1)%1, ease=x=>x*x*(3-2*x);
+        const beat=(start,close,end,amp)=>phase<start||phase>end?0:phase<close?ease((phase-start)/(close-start))*amp:(1-ease((phase-close)/(end-close)))*amp;
+        const u=Math.max(beat(.04,.12,.25,1),beat(.25,.31,.39,.48),beat(.52,.61,.78,1));
+        const sx=(1-0.28*u).toFixed(4), sy=(1+0.018*u).toFixed(4);
+        const left=`translate(${leftHinge},${cy}) scale(${sx} ${sy}) translate(${-leftHinge},${-cy})`;
+        const right=`translate(${rightHinge},${cy}) scale(${sx} ${sy}) translate(${-rightHinge},${-cy})`;
+        content=`<g clip-path="url(#csfFlapLeft_${uid})"><g transform="${left}">${content}</g></g><g clip-path="url(#csfFlapRight_${uid})"><g transform="${right}">${content}</g></g><g clip-path="url(#csfFlapBody_${uid})">${content}</g>`;
+      }
+    } else if(A==="wriggle"){
+      /* Long, directional noise makes a frame flex around the art instead of
+         boiling like a blob. It completes whole cycles so exported loops join. */
+      const cycles=Math.max(1,Math.round(aSp*2)), dur=(motionLoopSecs/cycles).toFixed(2);
+      if(animT==null){
+        const begin=`-${(phaseOffset*Number(dur)).toFixed(2)}s`;
+        extraDefs+=`<filter id="csfWriggle_${uid}" x="-35%" y="-35%" width="170%" height="170%"><feTurbulence type="fractalNoise" baseFrequency="0.006 0.020" numOctaves="2" seed="11" result="n"><animate attributeName="baseFrequency" values="0.006 0.020;0.011 0.014;0.006 0.020" dur="${dur}s" begin="${begin}" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.5;1" keySplines="0.45 0 0.55 1;0.45 0 0.55 1"/></feTurbulence><feDisplacementMap in="SourceGraphic" in2="n" scale="6" xChannelSelector="R" yChannelSelector="G"><animate attributeName="scale" values="3;9;3" dur="${dur}s" begin="${begin}" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.5;1" keySplines="0.45 0 0.55 1;0.45 0 0.55 1"/></feDisplacementMap></filter>`;
+      } else {
+        const u=0.5-0.5*Math.cos(animT*2*Math.PI*cycles);
+        const bx=(0.006+0.005*u).toFixed(4), by=(0.020-0.006*u).toFixed(4), sc=(3+6*u).toFixed(1);
+        extraDefs+=`<filter id="csfWriggle_${uid}" x="-35%" y="-35%" width="170%" height="170%"><feTurbulence type="fractalNoise" baseFrequency="${bx} ${by}" numOctaves="2" seed="11" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="${sc}" xChannelSelector="R" yChannelSelector="G"/></filter>`;
+      }
+      content=`<g filter="url(#csfWriggle_${uid})">${content}</g>`;
     } else if(animT==null){
       const dur=(4/aSp).toFixed(2);
       const kf={shimmer:`@keyframes csfA_${uid}{to{filter:hue-rotate(360deg)}}`,
@@ -1802,6 +1842,8 @@ function lookHasMotion(look){
    as one moving plate. The offset is stable for a saved seed and is also baked into
    exported frames, so preview and download match. */
 function layerMotionOffset(look,index){
+  const authored=Number(look&&look.motionPhase);
+  if(Number.isFinite(authored)) return ((authored%1)+1)%1;
   const seed=Math.abs(Number(look&&look.seed)||0);
   return (((seed%997)/997)+((index+1)*0.173))%1;
 }
@@ -1819,6 +1861,11 @@ function posterHasMotion(){ return posterMotionLooks().length>0; }
 function posterHasStackMotion(){
   if(isLayerEditing()) syncEditingLayer();
   return COMP.some(lookHasMotion);
+}
+function posterMotionLoopSeconds(){
+  const looks=posterMotionLooks();
+  const seconds=looks.map(look=>Number(look.morphSecs)||6);
+  return Math.max(3,Math.min(10,seconds.length?Math.max.apply(null,seconds):6));
 }
 function stopLayerMotionPreview(){
   // Surface Animate is poster-wide and deliberately remains live while switching
@@ -2090,10 +2137,14 @@ function setRange(id){const el=document.getElementById(id);if(!el)return;el.valu
 function setColor(id){const el=document.getElementById(id);if(el&&/^#([0-9a-f]{6})$/i.test(state[id]))el.value=state[id];}
 function syncAnimChips(){
   const set=Array.isArray(state.animSet)?state.animSet:[];
+  const visible=new Set([...document.querySelectorAll('#animChips button')].map(b=>b.dataset.v));
+  const legacy=set.some(v=>v!=="none"&&!visible.has(v));
   document.querySelectorAll('#animChips button').forEach(b=>{
     const v=b.dataset.v;
     b.classList.toggle('on', v==="none" ? set.length===0 : set.includes(v));
   });
+  const hint=document.getElementById('legacyMotionHint');
+  if(hint) hint.style.display=legacy?'block':'none';
 }
 function syncLayerScopeUI(){
   const editing=isLayerEditing();
@@ -2382,7 +2433,7 @@ function randomComp(){
     state.offX=0; state.offY=0; state.rotate=0;   // centred + upright: every mark starts at x/y 0, no tilt, no scatter
     state.alignMode='center';   // keep the stack cleanly centred
     state.grain=0; state.glitch=0;
-    if(!(state.animSet&&state.animSet.length)){ const m=pick(['liquid','morph','ripple','goo']); state.animSet=[m]; state.animType=m; }  // seamless-looping motions
+    state.animSet=[]; state.animType='none'; state.animCycle=false;             // poster building stays still; motion is an optional preview pass
     looks.push(looksState(true));
   }
   REELING=false;
@@ -2689,16 +2740,16 @@ async function rasterFrame(t,W,H,scale){
     svg=svg.replace(`width="${W}" height="${H}"`, `width="${ow}" height="${oh}"`); }   // viewBox stays 0 0 W H → crisp vector upscale
   return rasterSVGStr(svg);
 }
-/* ---- bounded-memory video rendering ----
+/* ---- bounded-memory motion-proof rendering ----
    Proof renders are deliberately cheap enough to use while tuning several moving
-   layers. Final keeps a 1920px output canvas, but rasterises the vector at its native
+   layers. High-res proof keeps a 1920px output canvas, but rasterises the vector at its native
    1000px working height and lets the canvas upscale once; asking every SVG filter to
    work at 1920px made dense posters several times slower with little visible benefit
    in moving footage. Only a few frames are retained at once. */
 let VIDEO_QUALITY="proof";
 const VIDEO_PROFILES={
   proof:{fps:8,outLong:960,renderLong:360,bitrate:3000000,label:"Quick proof"},
-  final:{fps:24,outLong:1920,renderLong:1000,bitrate:8000000,label:"Final"}
+  final:{fps:24,outLong:1920,renderLong:1000,bitrate:8000000,label:"High-res proof"}
 };
 function setVideoQuality(v){
   VIDEO_QUALITY=VIDEO_PROFILES[v]?v:"proof";
@@ -2707,7 +2758,7 @@ function setVideoQuality(v){
   const h=document.getElementById("videoQualityHint"), p=VIDEO_PROFILES[VIDEO_QUALITY];
   if(h) h.innerHTML=VIDEO_QUALITY==="proof"
     ? "<b>Quick proof</b> is for tuning several moving layers. It uses less memory and should finish first."
-    : "<b>Final</b> makes a 1920px-long video. It keeps memory bounded, but dense filter stacks can still take several minutes.";
+    : "<b>High-res proof</b> makes a 1920px-long study. It keeps memory bounded, but dense filter stacks can still take several minutes.";
   try{ localStorage.setItem("csf_video_quality",VIDEO_QUALITY); }catch(e){}
   return p;
 }
@@ -2857,7 +2908,7 @@ async function exportWEBM(btn){
   CSFProg.show('Preparing video…','Setting up the render');
   let _snap=null,_snapComp=null;
   try{
-    const H=1000,W=Math.round(1000*state.ratio), plan=videoRenderPlan(W,H,2);
+    const H=1000,W=Math.round(1000*state.ratio), plan=videoRenderPlan(W,H,posterMotionLoopSeconds());
     _snap=looksState(true); _snapComp=COMP.map(c=>JSON.parse(JSON.stringify(c)));   // freeze the look
     const result=await recordBakedVideo(plan,async(i,N,RS)=>{
       Object.assign(state,_snap); COMP=_snapComp;
@@ -3164,7 +3215,7 @@ function reorderSections(){
 /* ---- motion exploration strip (same fast-preview idea as the shape strip) ---- */
 let restartCycleFn=null;
 const MOTION_TILES=["boil","liquid","morph","goo","ripple"];
-const MOTION_LABEL={boil:"Boil",liquid:"Liquid",morph:"Morph",goo:"Goo",ripple:"Ripple",shimmer:"Shimmer",pulse:"Pulse",spin:"Spin",flicker:"Flicker"};
+const MOTION_LABEL={flap:"Flap",wriggle:"Wriggle",slowmorph:"Slow morph",boil:"Boil",liquid:"Liquid",morph:"Morph",goo:"Goo",ripple:"Ripple",shimmer:"Shimmer",pulse:"Pulse",spin:"Spin",flicker:"Flicker"};
 function renderMotionStrip(){
   const strip=document.getElementById("motionStrip"); if(!strip) return;
   const savedSet=state.animSet, savedType=state.animType, savedCyc=state.animCycle;
