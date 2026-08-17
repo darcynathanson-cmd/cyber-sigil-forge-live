@@ -622,11 +622,11 @@
         <span style="color:var(--dim);font-size:10px;flex:0 0 auto">MOTION</span>
         <div class="seg" id="motionSeg" role="group" aria-label="Motion mode" style="flex:1">
           <button id="footPosterStatic" data-mseg="still" title="Hold the design still — no motion">🖼 Still</button>
-          <button class="morphPlayBtn" id="footAnimate" data-mseg="animate" title="Surface ripples in place — tap to play or pause">▶ Animate</button>
+          <button class="morphPlayBtn" id="footAnimate" data-mseg="animate" title="Play every assigned layer while you keep editing">▶ Animate</button>
           <button class="weaveBtn" id="footWeave" data-mseg="morph" data-lbl="🌀 Morph" title="The whole shape blooms &amp; reconfigures — seamless loop">🌀 Morph</button>
         </div>
       </div>
-      <div class="subhint">Animate = surface ripples in place · Morph = the whole shape blooms &amp; reconfigures</div>
+      <div class="subhint">Animate stays live while you select and edit layers · Morph reshapes the whole composition</div>
 
       <!-- KEEP locks (respected by Shuffle) -->
       <div class="mini" style="align-items:center;gap:5px">
@@ -777,11 +777,19 @@
       <div class="emLbl">This design</div>
       <div class="emBtns">
         <button class="btn ghost" id="expSvg">SVG · vector</button>
-        <button class="btn ghost" id="expWebm">WEBM · animation</button>
+        <button class="btn ghost" id="expWebm">Video · assigned motion</button>
         <button class="btn ghost" id="expPng">PNG ×3</button>
         <button class="btn ghost" id="expPng4">PNG ×4</button>
       </div>
       <button class="tgl" id="transToggle2" style="width:100%;margin-top:8px">Transparent background: off</button>
+    </div>
+    <div class="emGroup">
+      <div class="emLbl">Video render</div>
+      <div class="seg" id="videoQualitySeg" role="group" aria-label="Video render quality" style="width:100%">
+        <button class="on" data-v="proof">Quick proof · 960p</button>
+        <button data-v="final">Final · 1920p</button>
+      </div>
+      <div class="emHint" id="videoQualityHint" style="margin-top:7px"><b>Quick proof</b> is for tuning several moving layers. It uses less memory and should finish first.</div>
     </div>
     <div class="emGroup">
       <div class="emLbl">Showcase reel · video</div>
@@ -791,7 +799,7 @@
         <button class="btn ghost" id="reelMotions">🎬 All motions</button>
         <button class="btn ghost" id="reelVariety">🎬 Variety mix</button>
       </div>
-      <div class="emHint" style="margin-top:6px"><b>Morph clip</b> = your current design (all of it) endlessly contorting — seamless loop. <b>All motions</b> = this design through every motion. <b>Variety mix</b> = 8 fresh looks (keeps anything Locked). Each takes ~20–60s to render.</div>
+      <div class="emHint" style="margin-top:6px"><b>Morph clip</b> = your current design (all of it) endlessly contorting — seamless loop. <b>All motions</b> = this design through every motion. <b>Variety mix</b> = 8 fresh looks (keeps anything Locked). Dense multi-layer finals can take minutes; run a Quick proof first.</div>
     </div>
     <div class="emGroup">
       <div class="emLbl">Your gallery</div>
@@ -800,7 +808,7 @@
         <button class="btn ghost" id="expAllZip">⬇ All as SVG (zip)</button>
       </div>
     </div>
-    <div class="emHint">SVG is editable vector · PNG for quick sharing · WEBM captures the live motion · Contact sheet & zip export your whole saved gallery.</div>
+    <div class="emHint">SVG is editable vector · PNG for quick sharing · Video preserves every layer’s assigned motion · Contact sheet &amp; zip export your whole saved gallery.</div>
   </div>
 </div>
 
@@ -1813,7 +1821,8 @@ function posterHasStackMotion(){
   return COMP.some(lookHasMotion);
 }
 function stopLayerMotionPreview(){
-  if(typeof morphPlaying!=="undefined"&&morphPlaying&&typeof stopMorphPlay==="function") stopMorphPlay();
+  // Surface Animate is poster-wide and deliberately remains live while switching
+  // edit targets. Geometry Morph still owns transient state, so stop only that mode.
   if(typeof weavePlaying!=="undefined"&&weavePlaying&&typeof stopWeave==="function") stopWeave();
 }
 function resetLayerEditing(){ EDIT_LAYER_INDEX=-1; EDIT_TOP_LOOK=null; }
@@ -1914,15 +1923,26 @@ function buildSVG(forExport,animT,opts){
 
 /* ---------- render into stage ---------- */
 let _renderRAF=0;
+function renderAllLayerMotionPreview(preserveTime){
+  const fw=document.getElementById("frameWrap");
+  const oldSvg=fw&&fw.firstElementChild&&fw.firstElementChild.tagName&&fw.firstElementChild.tagName.toLowerCase()==='svg'?fw.firstElementChild:null;
+  let clock=0;
+  if(preserveTime&&oldSvg&&typeof oldSvg.getCurrentTime==='function'){ try{ clock=oldSvg.getCurrentTime()||0; }catch(e){} }
+  fw.innerHTML=buildSVG(false,null,{allLayerMotion:true});
+  const nextSvg=fw.firstElementChild;
+  if(clock>0&&nextSvg&&typeof nextSvg.setCurrentTime==='function'){ try{ nextSvg.setCurrentTime(clock); }catch(e){} }
+  return nextSvg;
+}
 function render(){
   if(isLayerEditing()) syncEditingLayer();
   scheduleLayerListRefresh();
-  if((typeof morphPlaying!=='undefined'&&morphPlaying)||(typeof weavePlaying!=='undefined'&&weavePlaying)) return;   // morph/weave loop owns the stage while playing
+  if(typeof weavePlaying!=='undefined'&&weavePlaying) return;   // geometry Morph owns the stage while playing
   if(_renderRAF) return;                         // coalesce bursts into one paint per frame
   _renderRAF=requestAnimationFrame(()=>{ _renderRAF=0;
-    if((typeof morphPlaying!=='undefined'&&morphPlaying)||(typeof weavePlaying!=='undefined'&&weavePlaying)) return;  // a burst may have started morph/weave before this fired
+    if(typeof weavePlaying!=='undefined'&&weavePlaying) return;  // a geometry Morph burst may have started before this fired
     if(window.csfBeforeRender) window.csfBeforeRender();
-    document.getElementById("frameWrap").innerHTML=buildSVG(false, window.CSF_STATIC?0:undefined);
+    if(typeof morphPlaying!=='undefined'&&morphPlaying) renderAllLayerMotionPreview(true);
+    else document.getElementById("frameWrap").innerHTML=buildSVG(false, window.CSF_STATIC?0:undefined);
     document.getElementById("seedTag").textContent="seed "+state.seed;
     if(typeof positionGuides==="function") positionGuides();
   });
@@ -2573,7 +2593,10 @@ function renderVariants(){
 /* export */
 function download(name,blob){
   const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=name;
-  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);
+  document.body.appendChild(a);a.click();a.remove();
+  // Large videos may take a moment to transfer from the blob store into Downloads.
+  // Revoking after two seconds could turn a long render into a missing/broken file.
+  setTimeout(()=>URL.revokeObjectURL(url),blob&&/^video\//.test(blob.type||"")?60000:4000);
 }
 function exportSVG(){
   const svg=buildSVG(true);
@@ -2647,17 +2670,6 @@ function pickVideoMime(){
   for(const x of prefs){ try{ if(MediaRecorder.isTypeSupported(x)){ m=x; break; } }catch(e){} }
   return { mime:m, ext: m.indexOf("mp4")>=0 ? "mp4" : "webm" };
 }
-/* target output size for a baked clip: 1080×1920 for 9:16, generalised to a 1920 long edge,
-   auto-reduced so the stored frames stay within a memory budget on long loops */
-function reelOutSize(W,H,frameCount){
-  let RS=1920/H;                                   // ideal upscale (H is always 1000 → 1.92)
-  const MAXPX=310e6;                               // px budget across all held frames (~1.2GB @4B): full 1080×1920 up to ~6.2s loops, graceful downscale beyond
-  const px=(W*RS)*(H*RS)*Math.max(1,frameCount||1);
-  if(px>MAXPX) RS*=Math.sqrt(MAXPX/px);
-  RS=Math.max(1,RS);                               // never downscale below native
-  const even=n=>{ n=Math.round(n); return n%2? n-1 : n; };   // H.264/mp4 needs even dimensions
-  return { OW:even(W*RS), OH:even(H*RS), RS };
-}
 async function rasterSVGStr(svg){
   // Rasterise an SVG string to a bitmap. decode() drives the image decode pipeline directly, so
   // frames rasterise even when the Chrome window is backgrounded/occluded — img.onload for an
@@ -2676,6 +2688,110 @@ async function rasterFrame(t,W,H,scale){
   if(scale!==1){ const ow=Math.round(W*scale), oh=Math.round(H*scale);
     svg=svg.replace(`width="${W}" height="${H}"`, `width="${ow}" height="${oh}"`); }   // viewBox stays 0 0 W H → crisp vector upscale
   return rasterSVGStr(svg);
+}
+/* ---- bounded-memory video rendering ----
+   Proof renders are deliberately cheap enough to use while tuning several moving
+   layers. Final keeps a 1920px output canvas, but rasterises the vector at its native
+   1000px working height and lets the canvas upscale once; asking every SVG filter to
+   work at 1920px made dense posters several times slower with little visible benefit
+   in moving footage. Only a few frames are retained at once. */
+let VIDEO_QUALITY="proof";
+const VIDEO_PROFILES={
+  proof:{fps:8,outLong:960,renderLong:360,bitrate:3000000,label:"Quick proof"},
+  final:{fps:24,outLong:1920,renderLong:1000,bitrate:8000000,label:"Final"}
+};
+function setVideoQuality(v){
+  VIDEO_QUALITY=VIDEO_PROFILES[v]?v:"proof";
+  const seg=document.getElementById("videoQualitySeg");
+  if(seg) seg.querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.v===VIDEO_QUALITY));
+  const h=document.getElementById("videoQualityHint"), p=VIDEO_PROFILES[VIDEO_QUALITY];
+  if(h) h.innerHTML=VIDEO_QUALITY==="proof"
+    ? "<b>Quick proof</b> is for tuning several moving layers. It uses less memory and should finish first."
+    : "<b>Final</b> makes a 1920px-long video. It keeps memory bounded, but dense filter stacks can still take several minutes.";
+  try{ localStorage.setItem("csf_video_quality",VIDEO_QUALITY); }catch(e){}
+  return p;
+}
+function videoRenderPlan(W,H,seconds){
+  const p=VIDEO_PROFILES[VIDEO_QUALITY]||VIDEO_PROFILES.proof;
+  const even=n=>{n=Math.max(2,Math.round(n));return n%2?n-1:n;};
+  const OH=even(p.outLong), OW=even(OH*(W/H));
+  const RS=Math.min(1,p.renderLong/H);
+  const frames=Math.max(2,Math.round(Math.max(0.5,seconds||2)*p.fps));
+  return {quality:VIDEO_QUALITY,label:p.label,fps:p.fps,frames,OW,OH,RS,bitrate:p.bitrate};
+}
+function _wait(ms){ return new Promise(r=>setTimeout(r,ms)); }
+function _once(target,name,timeout){
+  return new Promise((resolve,reject)=>{
+    let timer=0;
+    const done=e=>{clearTimeout(timer);target.removeEventListener(name,done);resolve(e);};
+    target.addEventListener(name,done,{once:true});
+    timer=setTimeout(()=>{target.removeEventListener(name,done);reject(new Error("Video recorder did not "+name+"."));},timeout||12000);
+  });
+}
+async function validateVideoBlob(blob,OW,OH){
+  if(!blob||blob.size<2048) throw new Error("The browser produced an empty video. Nothing was downloaded.");
+  const url=URL.createObjectURL(blob), video=document.createElement("video");
+  video.muted=true; video.preload="metadata";
+  try{
+    await new Promise((resolve,reject)=>{
+      const timer=setTimeout(()=>reject(new Error("The finished video could not be verified.")),15000);
+      video.onloadedmetadata=()=>{clearTimeout(timer);resolve();};
+      video.onerror=()=>{clearTimeout(timer);reject(new Error("The browser produced a video it cannot reopen."));};
+      video.src=url;
+    });
+    if(!video.videoWidth||!video.videoHeight) throw new Error("The finished video has no readable picture track.");
+    return {width:video.videoWidth,height:video.videoHeight,duration:Number.isFinite(video.duration)?video.duration:null,expectedWidth:OW,expectedHeight:OH};
+  } finally { video.removeAttribute("src"); video.load(); URL.revokeObjectURL(url); }
+}
+async function recordBakedVideo(plan,bakeFrame,labels){
+  if(!window.MediaRecorder) throw new Error("Video recording is unavailable in this browser — try Chrome or Edge.");
+  const cv=document.createElement("canvas"); cv.width=plan.OW; cv.height=plan.OH;
+  const ctx=cv.getContext("2d",{alpha:!!state.transparent});
+  ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality="high";
+  const compressed=[]; let scratch=null,scratchCtx=null,stream=null,rec=null,recorderError=null;
+  try{
+    // Bake one raw frame, compress it, and immediately release the bitmap. The old
+    // exporter retained every full-size frame (often >1GB for a long dense clip).
+    for(let i=0;i<plan.frames;i++){
+      const frame=await bakeFrame(i,plan.frames,plan.RS);
+      const fw=frame.width||frame.naturalWidth, fh=frame.height||frame.naturalHeight;
+      if(!scratch){
+        scratch=document.createElement("canvas"); scratch.width=fw; scratch.height=fh;
+        scratchCtx=scratch.getContext("2d",{alpha:!!state.transparent});
+        scratchCtx.imageSmoothingEnabled=true; scratchCtx.imageSmoothingQuality="high";
+      }
+      scratchCtx.clearRect(0,0,scratch.width,scratch.height); scratchCtx.drawImage(frame,0,0,scratch.width,scratch.height);
+      const packed=await new Promise(resolve=>scratch.toBlob(resolve,"image/webp",0.9));
+      try{frame.close&&frame.close();}catch(e){}
+      if(!packed) throw new Error("A video frame could not be compressed.");
+      compressed.push(packed);
+      CSFProg.set(((i+1)/plan.frames)*0.86,labels&&labels.bake||"Drawing all layers",`Frame ${i+1} of ${plan.frames} · ${plan.label}`);
+    }
+    stream=cv.captureStream(plan.fps); const picked=pickVideoMime();
+    rec=new MediaRecorder(stream,{mimeType:picked.mime,videoBitsPerSecond:plan.bitrate});
+    const chunks=[];
+    rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data);};
+    rec.onerror=e=>{recorderError=(e&&e.error)||new Error("Video recorder failed.");};
+    // Seed the canvas before starting so the file never begins on a blank frame.
+    let first=await createImageBitmap(compressed[0]); ctx.clearRect(0,0,plan.OW,plan.OH); ctx.drawImage(first,0,0,plan.OW,plan.OH); first.close();
+    rec.start(1000);
+    for(let i=0;i<plan.frames;i++){
+      const frameStart=performance.now();
+      if(i>0){ const frame=await createImageBitmap(compressed[i]); ctx.clearRect(0,0,plan.OW,plan.OH); ctx.drawImage(frame,0,0,plan.OW,plan.OH); frame.close(); }
+      compressed[i]=null;
+      CSFProg.set(0.86+((i+1)/plan.frames)*0.14,labels&&labels.record||"Building video",`Frame ${i+1} of ${plan.frames} · ${plan.label}`);
+      await _wait(Math.max(4,(1000/plan.fps)-(performance.now()-frameStart)));
+    }
+    const stopped=_once(rec,"stop",30000); rec.stop(); await stopped;
+    if(recorderError) throw recorderError;
+    const blob=new Blob(chunks,{type:picked.mime.split(";")[0]});
+    const verified=await validateVideoBlob(blob,plan.OW,plan.OH);
+    return {blob,mime:picked.mime,ext:picked.ext,verified};
+  } finally {
+    compressed.length=0;
+    if(stream) stream.getTracks().forEach(track=>track.stop());
+    if(rec&&rec.state!=="inactive"){try{rec.stop();}catch(e){}}
+  }
 }
 /* ---- export progress helpers: make it clear HOW LONG a render takes ----
    Two phases: (1) baking frames — show a % + live ETA from elapsed/progress;
@@ -2739,25 +2855,22 @@ async function exportWEBM(btn){
   _EXPORTING=true; REELING=true;   // freeze the design: bake ONLY the current look, no concurrent mutation
   if(typeof morphPlaying!=='undefined' && morphPlaying && typeof stopMorphPlay==='function') stopMorphPlay();
   CSFProg.show('Preparing video…','Setting up the render');
+  let _snap=null,_snapComp=null;
   try{
-    const H=1000,W=Math.round(1000*state.ratio), fps=30, N=60;
-    const {OW,OH,RS}=reelOutSize(W,H,N);           // upscale to a 1920 long edge (1080×1920 for 9:16)
-    const _snap=looksState(true), _snapComp=COMP.map(c=>JSON.parse(JSON.stringify(c)));   // freeze the look
-    const _t0=performance.now();
-    const frames=[]; for(let i=0;i<N;i++){ Object.assign(state,_snap); COMP=_snapComp; frames.push(await rasterFrame(i/N,W,H,RS)); if(i%4===0)CSFProg.set(i/N*0.5,'Drawing frames','Frame '+(i+1)+' of '+N); }   // re-assert each frame → ONE design, no leaks
-    const cv=document.createElement("canvas"); cv.width=OW; cv.height=OH; const ctx=cv.getContext("2d");
-    const stream=cv.captureStream(fps);
-    const {mime,ext}=pickVideoMime();
-    const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:8000000});
-    const chunks=[]; rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
-    const done=new Promise(r=>rec.onstop=r); rec.start();
-    CSFProg.set(0.5,'Recording video','Encoding the loop in real time');
-    for(let i=0;i<N;i++){ ctx.clearRect(0,0,OW,OH); ctx.drawImage(frames[i],0,0,OW,OH); if(i%4===0)CSFProg.set(0.5+(i/N)*0.5,'Recording video','Encoding the loop in real time'); await new Promise(r=>setTimeout(r,1000/fps)); }
-    rec.stop(); await done;
-    download(`cyber-sigil-${state.mode}-${state.seed}-${OW}x${OH}.${ext}`, new Blob(chunks,{type:mime.split(';')[0]}));
-    CSFProg.done('Saved to your Downloads folder.');
+    const H=1000,W=Math.round(1000*state.ratio), plan=videoRenderPlan(W,H,2);
+    _snap=looksState(true); _snapComp=COMP.map(c=>JSON.parse(JSON.stringify(c)));   // freeze the look
+    const result=await recordBakedVideo(plan,async(i,N,RS)=>{
+      Object.assign(state,_snap); COMP=_snapComp;
+      return rasterFrame(i/N,W,H,RS);
+    },{bake:'Drawing all layers',record:'Building video'});
+    const seed=_snap.seed;
+    download(`cyber-sigil-${state.mode}-${seed}-${plan.quality}-${plan.OW}x${plan.OH}.${result.ext}`,result.blob);
+    CSFProg.done(`Verified ${result.verified.width}×${result.verified.height} video · saved to Downloads.`);
   }catch(e){ CSFProg.fail(e.message||'This browser may not support video recording — try Chrome or Edge.'); }
-  finally{ _EXPORTING=false; REELING=false; }
+  finally{
+    if(_snap){ Object.assign(state,_snap); COMP=_snapComp; }
+    _EXPORTING=false; REELING=false; renderCompList(); render();
+  }
   if(btn){btn.textContent=label;btn.disabled=false;}
 }
 
@@ -2774,44 +2887,43 @@ async function exportReel(mode,btn,segsOverride){
   _EXPORTING=true;
   if(typeof morphPlaying!=='undefined' && morphPlaying && typeof stopMorphPlay==='function') stopMorphPlay();
   const snap=looksState(true), snapCyc=state.animCycle, snapSet=(state.animSet||[]).slice(), snapType=state.animType;
+  const compSnap=COMP.map(c=>JSON.parse(JSON.stringify(c)));
   // segment plan
-  let plan=[];
+  let segments=[];
   if(mode==='motions'){
     const list=(state.animSet&&state.animSet.length)?state.animSet.slice():REEL_MOTIONS.slice();
-    plan=list.map(m=>({motion:m}));
+    segments=list.map(m=>({motion:m}));
   } else {
     const K=typeof segsOverride==='number'?segsOverride:6;
-    for(let i=0;i<K;i++) plan.push({shuffle:true});
+    for(let i=0;i<K;i++) segments.push({shuffle:true});
   }
   try{
     if(!(window.MediaRecorder)) throw new Error("MediaRecorder unavailable");
     state.animCycle=false; REELING=true;
-    const H=1000,W=Math.round(1000*state.ratio),fps=30,N=45;
-    const {OW,OH,RS}=reelOutSize(W,H,N);           // 1080×1920 for 9:16 (per-segment frames only → full res)
-    const cv=document.createElement("canvas");cv.width=OW;cv.height=OH;const ctx=cv.getContext("2d");
-    const stream=cv.captureStream(fps);
-    const {mime,ext}=pickVideoMime();
-    const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:8000000});
-    const chunks=[];rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
-    const done=new Promise(r=>rec.onstop=r);
-    const canPause=typeof rec.pause==='function';
-    rec.start(); CSFProg.show('Preparing reel…','Setting up the render');
-    for(let s=0;s<plan.length;s++){
-      CSFProg.set(s/plan.length,'Recording reel','Segment '+(s+1)+' of '+plan.length);
-      if(canPause && rec.state==='recording') rec.pause();   // don't record the baking freeze
-      if(plan[s].shuffle){ randomizeEverything(); const m=REEL_MOTIONS[randInt(0,REEL_MOTIONS.length-1)]; state.animSet=[m]; state.animType=m; }
-      else { state.animSet=[plan[s].motion]; state.animType=plan[s].motion; }
-      const frames=[]; for(let i=0;i<N;i++) frames.push(await rasterFrame(i/N,W,H,RS));   // bake one full motion loop
-      if(canPause && rec.state==='paused') rec.resume();
-      for(let i=0;i<N;i++){ ctx.clearRect(0,0,OW,OH); ctx.drawImage(frames[i],0,0,OW,OH); await new Promise(r=>setTimeout(r,1000/fps)); }
-      frames.forEach(f=>{ try{ f.close&&f.close(); }catch(e){} });   // free memory before next segment
+    const looks=[];
+    for(let s=0;s<segments.length;s++){
+      Object.assign(state,snap); COMP=compSnap;
+      if(segments[s].shuffle){ randomizeEverything(); const m=REEL_MOTIONS[randInt(0,REEL_MOTIONS.length-1)]; state.animSet=[m]; state.animType=m; }
+      else { state.animSet=[segments[s].motion]; state.animType=segments[s].motion; }
+      looks.push(looksState(true));
     }
-    rec.stop(); await done;
-    download(`cyber-sigil-reel-${mode}-${state.seed}-${OW}x${OH}.${ext}`, new Blob(chunks,{type:mime.split(';')[0]}));
-    CSFProg.done('Saved to your Downloads folder.');
+    Object.assign(state,snap); COMP=compSnap;
+    const H=1000,W=Math.round(1000*state.ratio),segmentSecs=1.5;
+    const videoPlan=videoRenderPlan(W,H,segmentSecs*looks.length);
+    const framesPerSegment=Math.max(1,Math.round(videoPlan.frames/looks.length));
+    videoPlan.frames=framesPerSegment*looks.length;
+    CSFProg.show('Preparing reel…',`${videoPlan.label} · ${looks.length} segments`);
+    const result=await recordBakedVideo(videoPlan,async(i,total,RS)=>{
+      const segment=Math.min(looks.length-1,Math.floor(i/framesPerSegment));
+      const local=(i%framesPerSegment)/framesPerSegment;
+      Object.assign(state,looks[segment]); COMP=compSnap;
+      return rasterFrame(local,W,H,RS);
+    },{bake:'Drawing reel frames',record:'Building reel'});
+    download(`cyber-sigil-reel-${mode}-${snap.seed}-${videoPlan.quality}-${videoPlan.OW}x${videoPlan.OH}.${result.ext}`,result.blob);
+    CSFProg.done(`Verified ${result.verified.width}×${result.verified.height} reel · saved to Downloads.`);
   }catch(e){ CSFProg.fail(e.message||'This browser may not support video recording — try Chrome or Edge.'); }
   REELING=false; _EXPORTING=false;
-  Object.assign(state,snap); state.animCycle=snapCyc; state.animSet=snapSet; state.animType=snapType;   // restore
+  COMP=compSnap; Object.assign(state,snap); state.animCycle=snapCyc; state.animSet=snapSet; state.animType=snapType;   // restore
   syncAllUI(); render(); refreshStrip();
   if(btn){btn.textContent=label;btn.disabled=false;}
 }
@@ -2844,28 +2956,13 @@ async function exportMorph(btn){
     if(!window.MediaRecorder) throw new Error("MediaRecorder unavailable");
     REELING=true; state.animCycle=false;
     if(!(state.animSet&&state.animSet.length)){ state.animSet=['liquid']; state.animType='liquid'; }   // ensure flowing surface
-    const H=1000,W=Math.round(1000*state.ratio),fps=30,total=Math.max(60,Math.min(300,Math.round((state.morphSecs||6)*fps)));   // exact loop length (honours morphSecs up to 10s)
-    const {OW,OH,RS}=reelOutSize(W,H,total);       // 1080×1920 for 9:16 (memory-aware for long loops)
-    CSFProg.show('Preparing video…','Setting up the render'); const _t0=performance.now();
-    const frames=[];
-    // Always bake the complete poster. The retired top-only fast path flattened the
-    // saved stack and is exactly how independently animated layers disappeared.
-    for(let i=0;i<total;i++){
-      frames.push(await rasterFrame(i/total,W,H,RS));
-      if(i%4===0) CSFProg.set(i/total*0.5,'Drawing all layers','Frame '+(i+1)+' of '+total);
-    }
-    const cv=document.createElement("canvas");cv.width=OW;cv.height=OH;const ctx=cv.getContext("2d");
-    const stream=cv.captureStream(fps);
-    const {mime,ext}=pickVideoMime();
-    const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:8000000});   // 8 Mbps — plenty for this flat/gradient art, ~half the file size
-    const chunks=[];rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
-    const done=new Promise(r=>rec.onstop=r);
-    CSFProg.set(0.5,'Recording video','Encoding the loop in real time'); rec.start();
-    for(let i=0;i<total;i++){ ctx.clearRect(0,0,OW,OH); ctx.drawImage(frames[i],0,0,OW,OH); if(i%4===0)CSFProg.set(0.5+(i/total)*0.5,'Recording video','Encoding the loop in real time'); await new Promise(r=>setTimeout(r,1000/fps)); }
-    rec.stop(); await done;
-    frames.forEach(f=>{ try{ f.close&&f.close(); }catch(e){} });
-    download(`cyber-sigil-morph-${state.seed}-${OW}x${OH}.${ext}`, new Blob(chunks,{type:mime.split(';')[0]}));
-    CSFProg.done('Saved to your Downloads folder.');
+    const H=1000,W=Math.round(1000*state.ratio),plan=videoRenderPlan(W,H,state.morphSecs||6);
+    CSFProg.show('Preparing video…',`${plan.label} · ${plan.frames} bounded-memory frames`);
+    // Always bake the complete poster. Frames are encoded in tiny batches and then
+    // released, so every layer survives without retaining the entire loop in memory.
+    const result=await recordBakedVideo(plan,(i,total,RS)=>rasterFrame(i/total,W,H,RS),{bake:'Drawing all layers',record:'Building morph clip'});
+    download(`cyber-sigil-morph-${state.seed}-${plan.quality}-${plan.OW}x${plan.OH}.${result.ext}`,result.blob);
+    CSFProg.done(`Verified ${result.verified.width}×${result.verified.height} video · saved to Downloads.`);
   }catch(e){ CSFProg.fail(e.message||'This browser may not support video recording — try Chrome or Edge.'); }
   REELING=false; _EXPORTING=false;
   COMP=compBase;   // restore stacked layers to their pre-morph state
@@ -2909,21 +3006,19 @@ function startMorphPlay(){
   if(morphPlaying) return;
   if(typeof weavePlaying!=='undefined' && weavePlaying && typeof stopWeave==='function') stopWeave();   // motion modes are mutually exclusive
   morphPlaying=true;
-  _morphHome={spikiness:state.spikiness,curl:state.curl,hook:state.hook,holes:state.holes,edge:state.edge,size:state.size,rotate:state.rotate,bgAngle:state.bgAngle,bgPatScale:state.bgPatScale,echoOffset:state.echoOffset};
+  _morphHome=null;   // Animate does not mutate geometry; live edits must survive Stop.
   if(!(state.animSet&&state.animSet.length)){ state.animSet=['liquid']; state.animType='liquid'; }
   if(isLayerEditing()) syncEditingLayer();
   _morphComp=COMP.map(c=>JSON.parse(JSON.stringify(c)));
   _morphT0=performance.now(); updateMorphBtns(true);
   if(_renderRAF){ cancelAnimationFrame(_renderRAF); _renderRAF=0; }   // drop any queued full render so it can't clobber our stage
-  const fw=document.getElementById('frameWrap');
   if(isLayerEditing()) syncEditingLayer();
-  fw.innerHTML=buildSVG(false,null,{allLayerMotion:true});
+  renderAllLayerMotionPreview(false);
   if(typeof positionGuides==='function') positionGuides();
 }
 function stopMorphPlay(){
   if(!morphPlaying) return;
   morphPlaying=false; cancelAnimationFrame(_morphRAF);
-  if(_morphHome) Object.assign(state,_morphHome);
   if(isLayerEditing()) syncEditingLayer();
   _morphComp=null;
   updateMorphBtns(false); syncAllUI(); render(); renderCompList();
@@ -2966,30 +3061,18 @@ async function exportWeave(btn){
     if(!window.MediaRecorder) throw new Error("MediaRecorder unavailable");
     REELING=true; state.animCycle=false;
     if(!(state.animSet&&state.animSet.length)){ state.animSet=['liquid']; state.animType='liquid'; }
-    const H=1000,W=Math.round(1000*state.ratio),fps=30,total=Math.max(60,Math.min(300,Math.round((state.morphSecs||6)*fps)));
-    const {OW,OH,RS}=reelOutSize(W,H,total);
+    const H=1000,W=Math.round(1000*state.ratio),plan=videoRenderPlan(W,H,state.morphSecs||6);
     const amt=(state.morphAmt!=null?state.morphAmt:1);
-    CSFProg.show('Preparing video…','Setting up the render'); const _t0=performance.now();
-    const frames=[];
-    for(let i=0;i<total;i++){
+    CSFProg.show('Preparing video…',`${plan.label} · ${plan.frames} bounded-memory frames`);
+    const result=await recordBakedVideo(plan,async(i,total,RS)=>{
+      Object.assign(state,home);
       const ph=(i/total)*2*Math.PI;
       morphEvolve(state,home,ph,amt);                    // reshape hero geometry (no rotation), seamless
-      frames.push(await rasterFrame((i/total),W,H,RS));  // + surface flow (animT sweeps one loop)
-      if(i%4===0) CSFProg.set(i/total*0.5,'Drawing frames','Frame '+(i+1)+' of '+total);
-    }
+      return rasterFrame(i/total,W,H,RS);                // + surface flow (animT sweeps one loop)
+    },{bake:'Drawing morph frames',record:'Building morph clip'});
     Object.assign(state,home);
-    const cv=document.createElement("canvas");cv.width=OW;cv.height=OH;const ctx=cv.getContext("2d");
-    const stream=cv.captureStream(fps);
-    const {mime,ext}=pickVideoMime();
-    const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:8000000});
-    const chunks=[];rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
-    const done=new Promise(r=>rec.onstop=r);
-    CSFProg.set(0.5,'Recording video','Encoding the loop in real time'); rec.start();
-    for(let i=0;i<total;i++){ ctx.clearRect(0,0,OW,OH); ctx.drawImage(frames[i],0,0,OW,OH); if(i%4===0)CSFProg.set(0.5+(i/total)*0.5,'Recording video','Encoding the loop in real time'); await new Promise(r=>setTimeout(r,1000/fps)); }
-    rec.stop(); await done;
-    frames.forEach(f=>{ try{ f.close&&f.close(); }catch(e){} });
-    download(`cyber-sigil-morph-${state.seed}-${OW}x${OH}.${ext}`, new Blob(chunks,{type:mime.split(';')[0]}));
-    CSFProg.done('Saved to your Downloads folder.');
+    download(`cyber-sigil-morph-${state.seed}-${plan.quality}-${plan.OW}x${plan.OH}.${result.ext}`,result.blob);
+    CSFProg.done(`Verified ${result.verified.width}×${result.verified.height} video · saved to Downloads.`);
   }catch(e){ CSFProg.fail(e.message||'This browser may not support video recording — try Chrome or Edge.'); }
   REELING=false; _EXPORTING=false;
   COMP=compBase; Object.assign(state,snap); state.animSet=snapSet; state.animType=snapType; state.animCycle=snapCyc;
@@ -3271,6 +3354,12 @@ function init(){
   document.getElementById("expSvg").onclick=exportSVG;
   document.getElementById("expPng").onclick=()=>exportPNG(3);
   document.getElementById("expPng4").onclick=()=>exportPNG(4);
+  (function(){
+    let saved="proof"; try{saved=localStorage.getItem("csf_video_quality")||"proof";}catch(e){}
+    setVideoQuality(saved);
+    const q=document.getElementById("videoQualitySeg");
+    if(q) q.querySelectorAll("button").forEach(b=>b.onclick=()=>setVideoQuality(b.dataset.v));
+  })();
   document.getElementById("reelMorph").onclick=function(){exportMorph(this);};
   window.CSF_ANIM_ALL=true;   // all stacked layers always animate together; top-only export was retired.
   (function(){ const b=document.getElementById('animScope'); if(!b) return;
